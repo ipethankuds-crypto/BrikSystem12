@@ -1,87 +1,61 @@
-# BrikSystem12 - Multi-Tenant SaaS Platform for Local Service Businesses
+# Brik Systems — Build a Better Business System
 
-A production-grade, multi-tenant SaaS application designed for local service businesses (Plumbing, Electrical, HVAC, Roofing, Landscaping, Cleaning, Contractors).
+Brik Systems builds websites and automated systems that help local businesses capture leads, manage customers, collect reviews, and follow up without the manual work.
 
-Each business gets:
-1. **Public-Facing Website** (`/#/site/:slug`): High-converting public landing page with services catalog, verified reviews, instant quote & booking form.
-2. **Private Business Dashboard** (`/#/dashboard`): All-in-one management suite with leads pipeline, customer CRM, jobs & dispatch Kanban, appointment scheduler, automated review collection, SMS/Email automation triggers, and real-time website customizer.
-3. **Strict Multi-Tenant Isolation**: Data is separated by `business_id` with PostgreSQL Row Level Security (RLS) policies.
-4. **Instant Inbound Flow**: When a customer submits a quote or booking on the public website, it automatically appears in real-time in the business owner's private dashboard and triggers SMS confirmation automations.
+Based on the [Brik Systems Platform](https://brik-systems-platfor-jrsk.bolt.host).
+
+---
+
+## 🌟 Pages & Architecture
+
+### 1. Marketing Website
+- **Home (`/#/`)**:
+  - Hero with live animated app mockup (+3 New Leads, +5 Active Jobs, +2 Completed, +4 Review Requests) and 5-step visual workflow.
+  - *"The real problem"* section (Missed Leads, Manual Follow-Up, Forgotten Reviews).
+  - *"What we build"* grid (Websites, Lead Systems, Review Systems, Follow-Up Automation, AI Business Automation).
+  - *"How Brik Systems works"* 6-step lifecycle diagram.
+  - *"The platform"* preview with embedded jobs table.
+  - Call to Action banner (*"Your Website Should Do More Than Look Good"*).
+- **Services (`/#/services`)**:
+  - Detailed feature breakdown of Websites, Lead Systems, Review Systems, Follow-Up Automation, and AI Business Automation.
+  - *"One Workflow, Start to Finish"* process timeline.
+- **Our Work (`/#/work`)**:
+  - 6 interactive portfolio case studies (*Northside Plumbing*, *Peak HVAC*, *Evergreen Landscaping*, *Bright & Clean Co.*, *Summit Contracting*, *Apex Auto Detailing*) with modal previews.
+- **About (`/#/about`)**:
+  - Mission, core philosophy, and why local service businesses need unified systems over disconnected point apps.
+- **Contact / Book a Call (`/#/contact`)**:
+  - Direct inquiry form that feeds into the lead pipeline in real time with instant toast notifications.
+- **Client Login (`/#/login`)**:
+  - Branded split-screen sign-in gateway into the client portal.
+
+### 2. Client Management Portal (`/#/portal`)
+- 📊 **Overview (`/#/portal`)**: Live KPI stat cards (New Leads, Active Jobs, Completed Jobs, Review Requests), workflow timeline, recent jobs table, and verified customer reviews.
+- 👥 **Leads (`/#/portal/leads`)**: Inbound lead pipeline with 1-click conversion to active work orders.
+- 🔨 **Jobs (`/#/portal/jobs`)**: Job tracker with technician dispatch, pricing, and 1-click completion that triggers automated 5-star review request messages.
+- 👤 **Customers (`/#/portal/customers`)**: Client directory with job history counters and contact info.
+- ⭐ **Reviews (`/#/portal/reviews`)**: Real feedback stream and star ratings.
+- 🔁 **Automations (`/#/portal/automations`)**: Event-driven SMS/Email triggers and dispatched notification history log.
+- ⚙️ **Settings (`/#/portal/settings`)**: Company profile and contact settings.
 
 ---
 
 ## 🚀 Quick Start (Zero Setup)
 
-You can launch and explore the platform immediately without installing any dependencies:
-
-1. Double-click or open **[`index.html`](file:///C:/Users/losik/.gemini/antigravity/scratch/briksystem12/index.html)** in any web browser (Chrome, Edge, Firefox, Safari).
-2. Use the **Tenant Switcher** in the top left to toggle between different service businesses:
-   - **Apex Flow Plumbing & Heating** (`/#/site/apex-plumbing`)
-   - **VoltCraft Electrical Systems** (`/#/site/voltcraft-electric`)
-   - **Arctic Air Heating & Cooling** (`/#/site/arctic-air-hvac`)
-   - Or click **"➕ Create New Business Tenant"** to instantly provision a new company!
-3. Click **"View Public Site"** to see how the public landing page looks and submit a live quote/booking.
-
----
-
-## 🗄️ Database Architecture & Schema
-
-The platform includes a complete PostgreSQL / Supabase schema in **[`supabase_schema.sql`](file:///C:/Users/losik/.gemini/antigravity/scratch/briksystem12/supabase_schema.sql)**.
-
-### Core Tables & Entities:
-| Table | Description |
-| :--- | :--- |
-| `businesses` | Tenant entity storing company name, slug, trade type, phone, email, address, hours, and branding. |
-| `profiles` | Multi-tenant user accounts with roles: `OWNER`, `ADMIN`, `STAFF`, `TECHNICIAN`. |
-| `customers` | Client directory with contact info, addresses, notes, and past job histories. |
-| `leads` | Inbound quote requests and inquiries with status pipeline (`NEW`, `CONTACTED`, `QUALIFIED`, `BOOKED`, `LOST`, `CONVERTED`). |
-| `jobs` | Work orders with scheduled dates, technician dispatch, status (`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`), and pricing. |
-| `appointments` | Calendar schedule linked to customers, jobs, and service technicians. |
-| `services` | Service catalog with descriptions, pricing rules, and duration estimates. |
-| `reviews` | 5-star ratings, testimonials, and automated review request tracking. |
-| `automation_rules` | Configurable event triggers (e.g. on `lead_created`, `job_completed`, `appointment_reminder`). |
-| `messages` | Dispatched SMS and Email communication logs. |
-| `website_settings` | Dynamic CMS configuration for the public website (headlines, hero images, theme colors). |
-
----
-
-## 🛠️ Developer Setup (Vite + React + TypeScript)
-
-If you have Node.js installed, you can also run the modular developer build:
-
-```bash
-# Install dependencies
-npm install
-
-# Start the local development server
-npm run dev
-
-# Build production bundle
-npm run build
-```
+1. Open **[`index.html`](file:///C:/Users/losik/.gemini/antigravity/scratch/briksystem12/index.html)** in any browser.
+2. Navigate seamlessly between **Home**, **Services**, **Our Work**, **About**, **Contact**, **Login**, and the **Client Portal**.
+3. Submit a test inquiry on the **Contact** page and watch it appear in the **Leads** section in the Portal.
+4. Mark a job as **Completed** in the Portal to see the automated review request workflow trigger in real time!
 
 ---
 
 ## 📦 Pushing to GitHub (`ipethankuds-crypto/BrikSystem12`)
 
-To push these new files to your GitHub repository:
-
 ```bash
 cd C:\Users\losik\.gemini\antigravity\scratch\briksystem12
 git init
 git add .
-git commit -m "Initial commit: Multi-tenant SaaS platform for local service businesses"
+git commit -m "Build Brik Systems platform matching bolt.host design and portal"
 git branch -M main
 git remote add origin https://github.com/ipethankuds-crypto/BrikSystem12.git
-git push -u origin main
+git push -u origin main --force
 ```
-
----
-
-## 🔑 Key Features Walkthrough
-
-- **Public-to-Private Lead Ingestion**: Visitors on `/#/site/apex-plumbing` fill out the booking form; it instantly injects into `leads` and dispatches an automated SMS confirmation.
-- **One-Click Lead Conversion**: Convert any incoming lead into a customer profile and schedule an on-site job with 1 click.
-- **Automated Review Engine**: Changing a job status to `COMPLETED` records `completed_at` and automatically triggers an SMS to the customer requesting a 5-star review.
-- **Live Website Customizer**: Edit headlines, subheadlines, story, and colors under **Website Builder** and watch changes immediately render on the public site.
-- **Role-Based Access Control**: Easily switch between `OWNER`, `ADMIN`, `STAFF`, and `TECHNICIAN` to test workflow permissions.
