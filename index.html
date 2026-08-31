@@ -6,6 +6,9 @@
   <title>Brik Systems — Build a Better Business System</title>
   <meta name="description" content="Brik Systems builds websites and automated systems that help local businesses capture leads, manage customers, collect reviews, and follow up without the manual work." />
 
+  <!-- Official Brik Systems SVG Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'><rect width='24' height='24' rx='6' fill='%230f172a'/><rect x='3.5' y='4' width='7.5' height='6.5' rx='1.5' fill='%23ffffff'/><rect x='13' y='4' width='7.5' height='6.5' rx='1.5' fill='%23f97316'/><rect x='3.5' y='13.5' width='7.5' height='6.5' rx='1.5' fill='%23f97316'/><rect x='13' y='13.5' width='7.5' height='6.5' rx='1.5' fill='%23ffffff'/></svg>" />
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -29,6 +32,36 @@
           },
           fontFamily: {
             sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          animation: {
+            'fade-in-up': 'fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'float-slow': 'floatSlow 4s ease-in-out infinite',
+            'pulse-subtle': 'pulseSubtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'gradient-flow': 'gradientFlow 8s ease infinite',
+            'shake': 'shake 0.4s ease-in-out',
+          },
+          keyframes: {
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(16px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            floatSlow: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-6px)' },
+            },
+            pulseSubtle: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.6' },
+            },
+            gradientFlow: {
+              '0%, 100%': { backgroundPosition: '0% 50%' },
+              '50%': { backgroundPosition: '100% 50%' },
+            },
+            shake: {
+              '0%, 100%': { transform: 'translateX(0)' },
+              '20%, 60%': { transform: 'translateX(-6px)' },
+              '40%, 80%': { transform: 'translateX(6px)' },
+            }
           }
         }
       }
@@ -97,11 +130,11 @@
     }
 
     // =========================================================================
-    // Brik Systems Official Logo
+    // Brik Systems Official Logo Component
     // =========================================================================
     function BrikLogo({ className = "h-5 w-5" }) {
       return (
-        <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 shadow-sm" aria-hidden="true">
+        <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 shadow-sm transition-transform hover:scale-105" aria-hidden="true">
           <svg viewBox="0 0 24 24" className={className} fill="none">
             <rect x="3" y="4" width="8" height="6" rx="1" fill="#fff"></rect>
             <rect x="13" y="4" width="8" height="6" rx="1" fill="#f97316"></rect>
@@ -171,15 +204,30 @@
       const [modal, setModal] = useState({ type: null, data: null });
       const [toast, setToast] = useState(null);
 
+      // Auth State
+      const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        return localStorage.getItem('brik_auth_token') === 'authenticated_dexter';
+      });
+      const [loginEmail, setLoginEmail] = useState('');
+      const [loginPassword, setLoginPassword] = useState('');
+      const [loginError, setLoginError] = useState('');
+      const [isLoggingIn, setIsLoggingIn] = useState(false);
+
       // Listen to URL Hash routing
       useEffect(() => {
         const handleHashChange = () => {
-          setRoute(window.location.hash || '#/');
+          const currentHash = window.location.hash || '#/';
+          setRoute(currentHash);
           window.scrollTo({ top: 0, behavior: 'smooth' });
+
+          // Protect portal routes
+          if (currentHash.startsWith('#/portal') && !isAuthenticated) {
+            window.location.hash = '#/login';
+          }
         };
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
-      }, []);
+      }, [isAuthenticated]);
 
       const updateData = (updater) => {
         setData((prev) => {
@@ -192,6 +240,37 @@
       const showToast = (msg) => {
         setToast(msg);
         setTimeout(() => setToast(null), 3500);
+      };
+
+      const handleLoginSubmit = (e) => {
+        e.preventDefault();
+        setLoginError('');
+        setIsLoggingIn(true);
+
+        const cleanEmail = loginEmail.toLowerCase().trim();
+        const cleanPass = loginPassword.trim();
+
+        setTimeout(() => {
+          if (cleanEmail === 'dexter125555@gmail.com' && cleanPass === 'serish12') {
+            setIsAuthenticated(true);
+            localStorage.setItem('brik_auth_token', 'authenticated_dexter');
+            showToast('Welcome back, Dexter!');
+            setLoginError('');
+            window.location.hash = '#/portal';
+          } else {
+            setLoginError('Invalid email or password. Please check your credentials and try again.');
+          }
+          setIsLoggingIn(false);
+        }, 400);
+      };
+
+      const handleLogout = () => {
+        setIsAuthenticated(false);
+        localStorage.removeItem('brik_auth_token');
+        setLoginEmail('');
+        setLoginPassword('');
+        showToast('Logged out successfully.');
+        window.location.hash = '#/login';
       };
 
       const handleAddLead = (leadInput) => {
@@ -243,38 +322,37 @@
         }));
       };
 
-      // Marketing vs Portal view detection
-      const isPortal = route.startsWith('#/portal');
-      const isLogin = route === '#/login';
-
       // =======================================================================
       // SHARED MARKETING HEADER
       // =======================================================================
       const MarketingHeader = () => (
-        <header className="fixed inset-x-0 top-0 z-50 transition-all duration-300 border-b border-slate-200/80 bg-white/90 backdrop-blur">
+        <header className="fixed inset-x-0 top-0 z-50 transition-all duration-300 border-b border-slate-200/80 bg-white/90 backdrop-blur shadow-sm">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
-            <a className="shrink-0" href="#/">
+            <a className="shrink-0 group" href="#/">
               <span className="inline-flex items-center gap-2.5">
                 <BrikLogo />
-                <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900">
+                <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900 group-hover:text-ember-600 transition-colors">
                   Brik<span className="ml-1 font-semibold text-slate-400">Systems</span>
                 </span>
               </span>
             </a>
 
             <nav className="hidden items-center gap-1 md:flex">
-              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${route === '#/' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`} href="#/">Home</a>
-              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${route === '#/services' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`} href="#/services">Services</a>
-              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${route === '#/work' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`} href="#/work">Our Work</a>
-              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${route === '#/about' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`} href="#/about">About</a>
-              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${route === '#/contact' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`} href="#/contact">Contact</a>
+              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-all ${route === '#/' ? 'text-slate-900 font-bold bg-slate-100/70' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`} href="#/">Home</a>
+              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-all ${route === '#/services' ? 'text-slate-900 font-bold bg-slate-100/70' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`} href="#/services">Services</a>
+              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-all ${route === '#/work' ? 'text-slate-900 font-bold bg-slate-100/70' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`} href="#/work">Our Work</a>
+              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-all ${route === '#/about' ? 'text-slate-900 font-bold bg-slate-100/70' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`} href="#/about">About</a>
+              <a className={`rounded-md px-3 py-2 text-sm font-medium transition-all ${route === '#/contact' ? 'text-slate-900 font-bold bg-slate-100/70' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`} href="#/contact">Contact</a>
             </nav>
 
             <div className="flex items-center gap-3">
-              <a className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-slate-100 h-10 px-4 py-2 text-slate-700 hover:text-slate-900" href="#/login">
-                Client Login
+              <a
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-slate-100 h-10 px-4 py-2 text-slate-700 hover:text-slate-900"
+                href={isAuthenticated ? "#/portal" : "#/login"}
+              >
+                {isAuthenticated ? "Portal Dashboard →" : "Client Login"}
               </a>
-              <a className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold transition-colors h-10 px-4 py-2 bg-ember-500 text-white shadow-sm hover:bg-ember-600" href="#/contact">
+              <a className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold transition-all h-10 px-4 py-2 bg-ember-500 text-white shadow-sm hover:bg-ember-600 hover:shadow transform active:scale-95" href="#/contact">
                 Book a Call
               </a>
             </div>
@@ -333,16 +411,16 @@
       // =======================================================================
       const CtaBanner = () => (
         <section className="px-5 py-20 sm:px-8 sm:py-28">
-          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-slate-900 px-6 py-16 sm:px-16">
-            <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-ember-500/20 blur-3xl"></div>
-            <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-ember-500/10 blur-3xl"></div>
+          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-slate-900 px-6 py-16 sm:px-16 shadow-2xl">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-ember-500/20 blur-3xl animate-pulse-subtle"></div>
+            <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-ember-500/10 blur-3xl animate-pulse-subtle"></div>
             <div className="relative max-w-2xl">
               <h2 className="text-3xl font-bold text-white sm:text-4xl">Your Website Should Do More Than Look Good.</h2>
               <p className="mt-5 text-lg leading-relaxed text-slate-300">
                 Build a system that helps your business capture leads, manage jobs, follow up with customers, and grow.
               </p>
               <div className="mt-8">
-                <a className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold h-11 rounded-md px-8 bg-ember-500 text-white hover:bg-ember-600 shadow-md transition" href="#/contact">
+                <a className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold h-11 rounded-md px-8 bg-ember-500 text-white hover:bg-ember-600 shadow-lg hover:shadow-ember-500/30 transition transform hover:-translate-y-0.5 active:translate-y-0" href="#/contact">
                   Let's Build It
                   <Icon name="arrow-right" className="ml-2 h-4 w-4" />
                 </a>
@@ -364,9 +442,9 @@
               <section className="relative overflow-hidden">
                 <div className="brik-grid-bg pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"></div>
                 <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-2 lg:py-24">
-                  <div>
-                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
-                      <span className="h-1.5 w-1.5 rounded-full bg-ember-500"></span>
+                  <div className="animate-fade-in-up">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 backdrop-blur px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
+                      <span className="h-1.5 w-1.5 rounded-full bg-ember-500 animate-ping"></span>
                       Websites + Systems for local business
                     </span>
                     <h1 className="mt-6 text-4xl font-bold leading-[1.1] text-slate-900 sm:text-5xl lg:text-6xl text-balance">
@@ -376,32 +454,32 @@
                       Brik Systems builds websites and automated systems that help local businesses capture leads, manage customers, collect reviews, and follow up without the manual work.
                     </p>
                     <div className="mt-8 flex flex-wrap gap-3">
-                      <a className="inline-flex items-center justify-center text-sm font-semibold h-11 rounded-md px-8 bg-ember-500 text-white hover:bg-ember-600 shadow-sm transition" href="#/contact">
+                      <a className="inline-flex items-center justify-center text-sm font-semibold h-11 rounded-md px-8 bg-ember-500 text-white hover:bg-ember-600 shadow-md hover:shadow-ember-500/25 transition transform hover:-translate-y-0.5 active:translate-y-0" href="#/contact">
                         Book a Call
                         <Icon name="arrow-right" className="ml-2 h-4 w-4" />
                       </a>
-                      <a className="inline-flex items-center justify-center text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 h-11 rounded-md px-8 shadow-sm transition" href="#/work">
+                      <a className="inline-flex items-center justify-center text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 h-11 rounded-md px-8 shadow-sm transition transform hover:-translate-y-0.5" href="#/work">
                         See Our Work
                       </a>
                     </div>
                   </div>
 
-                  {/* Interactive App Mockup */}
-                  <div>
-                    <div className="relative">
+                  {/* Interactive App Mockup with Floating Animation */}
+                  <div className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                    <div className="relative animate-float-slow">
                       <div className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-tr from-ember-100/60 via-slate-100/40 to-transparent blur-2xl"></div>
-                      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5">
+                      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5 transition-all hover:shadow-3xl">
                         <div className="flex items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
                           <span className="h-3 w-3 rounded-full bg-slate-300"></span>
                           <span className="h-3 w-3 rounded-full bg-slate-300"></span>
                           <span className="h-3 w-3 rounded-full bg-slate-300"></span>
-                          <span className="ml-3 text-xs font-medium text-slate-400">app.briksystems.io</span>
+                          <span className="ml-3 text-xs font-medium text-slate-400 font-mono">app.briksystems.io</span>
                         </div>
                         <div className="p-5 sm:p-6">
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-xs font-medium text-slate-400">Good morning,</p>
-                              <p className="text-lg font-bold text-slate-900">Alex</p>
+                              <p className="text-lg font-bold text-slate-900">{isAuthenticated ? 'Dexter' : 'Alex'}</p>
                             </div>
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                               <Icon name="trending-up" className="h-3.5 w-3.5" />
@@ -410,7 +488,7 @@
                           </div>
 
                           <div className="mt-5 grid grid-cols-2 gap-3">
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
+                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm hover:border-slate-200 transition">
                               <div className="flex items-center justify-between">
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-600 bg-blue-50">
                                   <Icon name="user-plus" className="h-4 w-4" />
@@ -421,7 +499,7 @@
                               <p className="text-xs text-slate-500">New Leads</p>
                             </div>
 
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
+                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm hover:border-slate-200 transition">
                               <div className="flex items-center justify-between">
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ember-600 bg-ember-50">
                                   <Icon name="hammer" className="h-4 w-4" />
@@ -432,7 +510,7 @@
                               <p className="text-xs text-slate-500">Active Jobs</p>
                             </div>
 
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
+                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm hover:border-slate-200 transition">
                               <div className="flex items-center justify-between">
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-600 bg-emerald-50">
                                   <Icon name="circle-check" className="h-4 w-4" />
@@ -443,7 +521,7 @@
                               <p className="text-xs text-slate-500">Completed</p>
                             </div>
 
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
+                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm hover:border-slate-200 transition">
                               <div className="flex items-center justify-between">
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-violet-600 bg-slate-100">
                                   <Icon name="message-square-quote" className="h-4 w-4" />
@@ -467,8 +545,8 @@
                                 { label: '5★ Review', icon: 'star' },
                               ].map((step, idx) => (
                                 <React.Fragment key={idx}>
-                                  <div className="flex flex-col items-center gap-1.5 text-center flex-1">
-                                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm">
+                                  <div className="flex flex-col items-center gap-1.5 text-center flex-1 group">
+                                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform group-hover:scale-110">
                                       <Icon name={step.icon} className="h-3.5 w-3.5" />
                                     </span>
                                     <span className="text-[10px] font-medium leading-tight text-slate-500">{step.label}</span>
@@ -498,8 +576,8 @@
                 </div>
 
                 <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
-                  <div className="group rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-ember-50 text-ember-600">
+                  <div className="group rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:border-slate-300 hover:shadow-xl">
+                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-ember-50 text-ember-600 transition-transform group-hover:scale-110">
                       <Icon name="phone-call" className="h-5 w-5" />
                     </span>
                     <h3 className="mt-5 text-lg font-semibold text-slate-900">Missed Leads</h3>
@@ -508,8 +586,8 @@
                     </p>
                   </div>
 
-                  <div className="group rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-ember-50 text-ember-600">
+                  <div className="group rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:border-slate-300 hover:shadow-xl">
+                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-ember-50 text-ember-600 transition-transform group-hover:scale-110">
                       <Icon name="clock" className="h-5 w-5" />
                     </span>
                     <h3 className="mt-5 text-lg font-semibold text-slate-900">Manual Follow-Up</h3>
@@ -518,8 +596,8 @@
                     </p>
                   </div>
 
-                  <div className="group rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-ember-50 text-ember-600">
+                  <div className="group rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:border-slate-300 hover:shadow-xl">
+                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-ember-50 text-ember-600 transition-transform group-hover:scale-110">
                       <Icon name="star" className="h-5 w-5" />
                     </span>
                     <h3 className="mt-5 text-lg font-semibold text-slate-900">Forgotten Reviews</h3>
@@ -529,7 +607,7 @@
                   </div>
                 </div>
 
-                <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 p-7 text-center">
+                <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 p-7 text-center shadow-sm">
                   <p className="text-lg font-medium text-slate-800">
                     Brik Systems connects your website, leads, jobs, and reviews into one system — so the right thing happens automatically after someone becomes your customer.
                   </p>
@@ -547,7 +625,7 @@
                 </div>
 
                 <div className="mx-auto mt-14 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:shadow-lg">
+                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
                     <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
                       <Icon name="globe" className="h-5 w-5" />
                     </span>
@@ -563,7 +641,7 @@
                     </ul>
                   </div>
 
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:shadow-lg">
+                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
                     <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
                       <Icon name="users" className="h-5 w-5" />
                     </span>
@@ -571,7 +649,7 @@
                     <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Capture and organize potential customers in one clear pipeline.</p>
                   </div>
 
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:shadow-lg">
+                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
                     <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
                       <Icon name="star" className="h-5 w-5" />
                     </span>
@@ -579,7 +657,7 @@
                     <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Automatically request honest customer feedback after completed jobs.</p>
                   </div>
 
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:shadow-lg">
+                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
                     <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
                       <Icon name="repeat" className="h-5 w-5" />
                     </span>
@@ -587,7 +665,7 @@
                     <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Reduce repetitive customer communication with smart follow-ups.</p>
                   </div>
 
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:shadow-lg">
+                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
                     <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
                       <Icon name="bot" className="h-5 w-5" />
                     </span>
@@ -595,7 +673,7 @@
                     <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Use AI to automate repetitive business processes where appropriate.</p>
                   </div>
 
-                  <div className="flex flex-col justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-7">
+                  <div className="flex flex-col justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-7 transition-all hover:border-slate-400">
                     <h3 className="text-lg font-semibold text-slate-900">Not sure where to start?</h3>
                     <p className="mt-2 text-sm text-slate-600">Book a call and we'll map the simplest system for your business.</p>
                     <a className="mt-3 inline-flex items-center text-sm font-semibold text-ember-600 hover:text-ember-700" href="#/contact">
@@ -622,7 +700,7 @@
                     { step: 'Step 5', title: 'Request a Review', desc: 'The customer receives a request for honest feedback.', icon: 'message-square-quote' },
                     { step: 'Step 6', title: 'Follow Up', desc: 'If enabled, the system can send a follow-up reminder.', icon: 'bell-ring' },
                   ].map((s, idx) => (
-                    <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex items-start gap-4 hover:shadow-md transition">
+                    <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex items-start gap-4 hover:shadow-md transition-all hover:border-slate-300">
                       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ember-50 text-ember-600">
                         <Icon name={s.icon} className="h-6 w-6" />
                       </span>
@@ -641,7 +719,7 @@
                 </div>
               </section>
 
-              {/* The Platform Preview & Link to Portal */}
+              {/* The Platform Preview */}
               <section className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
                 <div className="max-w-2xl mx-auto text-center">
                   <span className="inline-block text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">The platform</span>
@@ -706,7 +784,7 @@
                 </div>
 
                 <div className="mt-8 text-center">
-                  <a className="inline-flex items-center justify-center text-sm font-semibold border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 h-11 rounded-md px-8 shadow-sm transition" href="#/portal">
+                  <a className="inline-flex items-center justify-center text-sm font-semibold border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 h-11 rounded-md px-8 shadow-sm transition transform hover:-translate-y-0.5" href={isAuthenticated ? "#/portal" : "#/login"}>
                     Explore the Client Portal
                     <Icon name="arrow-right" className="ml-2 h-4 w-4" />
                   </a>
@@ -877,7 +955,7 @@
               <section className="px-5 pb-8 sm:px-8">
                 <div className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {portfolio.map((item) => (
-                    <article key={item.name} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all hover:-translate-y-1 hover:shadow-xl">
+                    <article key={item.name} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
                       <div className="relative aspect-[16/10] overflow-hidden">
                         <div className={`absolute inset-0 z-10 bg-gradient-to-t ${item.color} to-transparent`}></div>
                         <img src={item.img} alt={item.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -1108,13 +1186,13 @@
       // =======================================================================
       if (route === '#/login') {
         return (
-          <div className="grid min-h-screen lg:grid-cols-2">
+          <div className="grid min-h-screen lg:grid-cols-2 bg-white">
             <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
               <div className="mx-auto w-full max-w-sm">
-                <a className="inline-flex" href="#/">
+                <a className="inline-flex group" href="#/">
                   <span className="inline-flex items-center gap-2.5">
                     <BrikLogo />
-                    <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900">
+                    <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900 group-hover:text-ember-600 transition">
                       Brik<span className="ml-1 font-semibold text-slate-400">Systems</span>
                     </span>
                   </span>
@@ -1125,41 +1203,69 @@
                   <p className="mt-2 text-slate-600">Sign in to manage your leads, jobs, and reviews.</p>
                 </div>
 
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    window.location.hash = '#/portal';
-                  }}
-                  className="mt-8 space-y-5"
-                >
+                {loginError && (
+                  <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2.5 animate-shake">
+                    <Icon name="alert-circle" className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleLoginSubmit} className="mt-6 space-y-5">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none" htmlFor="email">Email</label>
-                    <input id="email" type="email" defaultValue="alex@briksystems.io" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
+                    <label className="text-sm font-medium leading-none text-slate-700" htmlFor="email">Email</label>
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500 transition"
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium leading-none" htmlFor="password">Password</label>
-                      <button type="button" className="text-sm font-medium text-ember-600 hover:text-ember-700">Forgot password?</button>
+                      <label className="text-sm font-medium leading-none text-slate-700" htmlFor="password">Password</label>
+                      <button type="button" className="text-xs font-medium text-ember-600 hover:text-ember-700">Forgot password?</button>
                     </div>
-                    <input id="password" type="password" defaultValue="demo1234" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
+                    <input
+                      id="password"
+                      type="password"
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500 transition"
+                    />
                   </div>
 
-                  <button type="submit" className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold h-11 rounded-md px-8 w-full bg-ember-500 text-white hover:bg-ember-600 shadow transition">
-                    Sign In <Icon name="arrow-right" className="ml-2 h-4 w-4" />
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold h-11 rounded-md px-8 w-full bg-ember-500 text-white hover:bg-ember-600 shadow-md hover:shadow-ember-500/20 transition transform active:scale-98 disabled:opacity-70"
+                  >
+                    {isLoggingIn ? (
+                      <span className="flex items-center gap-2">
+                        <Icon name="loader-2" className="w-4 h-4 animate-spin" /> Signing in...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        Sign In <Icon name="arrow-right" className="ml-1 h-4 w-4" />
+                      </span>
+                    )}
                   </button>
                 </form>
 
-                <p className="mt-6 text-center text-sm text-slate-500">Demo portal — click Sign In to enter client portal.</p>
-                <a className="mt-10 inline-flex items-center text-sm text-slate-500 hover:text-slate-900" href="#/">
+                <a className="mt-10 inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 transition" href="#/">
                   <Icon name="arrow-left" className="mr-1.5 h-4 w-4" /> Back to website
                 </a>
               </div>
             </div>
 
             <div className="relative hidden overflow-hidden bg-slate-900 lg:block">
-              <div className="pointer-events-none absolute -right-20 top-20 h-80 w-80 rounded-full bg-ember-500/20 blur-3xl"></div>
-              <div className="pointer-events-none absolute bottom-10 -left-10 h-72 w-72 rounded-full bg-ember-500/10 blur-3xl"></div>
+              <div className="pointer-events-none absolute -right-20 top-20 h-80 w-80 rounded-full bg-ember-500/20 blur-3xl animate-pulse-subtle"></div>
+              <div className="pointer-events-none absolute bottom-10 -left-10 h-72 w-72 rounded-full bg-ember-500/10 blur-3xl animate-pulse-subtle"></div>
               <div className="relative flex h-full flex-col justify-center px-16">
                 <blockquote className="max-w-md text-2xl font-medium leading-snug text-white">
                   “Brik Systems doesn't just build my website. It runs the whole process after someone becomes my customer.”
@@ -1228,7 +1334,7 @@
                   <a
                     key={item.id}
                     href={item.hash}
-                    className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                       isActive ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
@@ -1247,12 +1353,15 @@
             </nav>
 
             <div className="border-t border-slate-100 px-3 py-4 space-y-1">
-              <a className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" href="#/contact">
+              <a className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition" href="#/contact">
                 <Icon name="life-buoy" className="h-4 w-4 text-slate-400" /> Help & Support
               </a>
-              <a className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50" href="#/">
-                <Icon name="log-out" className="h-4 w-4 text-slate-400" /> Back to Website
-              </a>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                <Icon name="log-out" className="h-4 w-4 text-slate-400 group-hover:text-red-500" /> Log Out
+              </button>
             </div>
           </aside>
 
@@ -1288,15 +1397,15 @@
               {/* TAB 1: OVERVIEW */}
               {/* ------------------------------------------------------------- */}
               {currentPortalTab === 'overview' && (
-                <div>
+                <div className="animate-fade-in-up">
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Good morning, Alex 👋</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">Good morning, Dexter 👋</h1>
                     <p className="mt-1 text-slate-500">Here's what's happening with your business.</p>
                   </div>
 
                   {/* 4 Stat Cards */}
                   <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-blue-600 bg-blue-50">
                           <Icon name="user-plus" className="h-5 w-5" />
@@ -1306,7 +1415,7 @@
                       <p className="mt-1 text-sm text-slate-500">New Leads</p>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-ember-600 bg-ember-50">
                           <Icon name="hammer" className="h-5 w-5" />
@@ -1316,7 +1425,7 @@
                       <p className="mt-1 text-sm text-slate-500">Active Jobs</p>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-emerald-600 bg-emerald-50">
                           <Icon name="circle-check" className="h-5 w-5" />
@@ -1326,7 +1435,7 @@
                       <p className="mt-1 text-sm text-slate-500">Completed Jobs</p>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-violet-600 bg-slate-100">
                           <Icon name="message-square-quote" className="h-5 w-5" />
@@ -1417,7 +1526,7 @@
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {data.jobs.map((job) => (
-                              <tr key={job.id} className="hover:bg-slate-50">
+                              <tr key={job.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-4 py-3 font-medium text-slate-900">{job.customer}</td>
                                 <td className="px-4 py-3 text-slate-600">{job.service}</td>
                                 <td className="px-4 py-3">
@@ -1439,7 +1548,7 @@
                       <h2 className="text-lg font-semibold text-slate-900">Recent Reviews</h2>
                       <div className="mt-4 space-y-3">
                         {data.reviews.map((rev) => (
-                          <div key={rev.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div key={rev.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition">
                             <div className="flex items-center justify-between">
                               <p className="font-semibold text-slate-900">{rev.author}</p>
                               <div className="flex gap-0.5 text-amber-400">
@@ -1462,7 +1571,7 @@
               {/* TAB 2: LEADS (/#/portal/leads) */}
               {/* ------------------------------------------------------------- */}
               {currentPortalTab === 'leads' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in-up">
                   <div className="flex justify-between items-center">
                     <div>
                       <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
@@ -1490,7 +1599,7 @@
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {data.leads.map((lead) => (
-                          <tr key={lead.id} className="hover:bg-slate-50">
+                          <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
                             <td className="p-4 font-bold text-slate-900">
                               {lead.name}
                               <p className="text-xs text-slate-400 font-normal">{lead.date}</p>
@@ -1546,7 +1655,7 @@
               {/* TAB 3: JOBS (/#/portal/jobs) */}
               {/* ------------------------------------------------------------- */}
               {currentPortalTab === 'jobs' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in-up">
                   <div className="flex justify-between items-center">
                     <div>
                       <h1 className="text-2xl font-bold text-slate-900">Jobs</h1>
@@ -1574,7 +1683,7 @@
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {data.jobs.map((job) => (
-                          <tr key={job.id} className="hover:bg-slate-50">
+                          <tr key={job.id} className="hover:bg-slate-50 transition-colors">
                             <td className="p-4 font-bold text-slate-900">{job.customer}</td>
                             <td className="p-4 text-slate-700">{job.service}</td>
                             <td className="p-4 text-xs text-slate-600">{job.date} ({job.time})</td>
@@ -1591,7 +1700,7 @@
                               {job.status !== 'COMPLETED' ? (
                                 <button
                                   onClick={() => handleJobStatusChange(job.id, 'COMPLETED')}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
                                 >
                                   Complete & Review →
                                 </button>
@@ -1611,7 +1720,7 @@
               {/* TAB 4: CUSTOMERS (/#/portal/customers) */}
               {/* ------------------------------------------------------------- */}
               {currentPortalTab === 'customers' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in-up">
                   <div className="flex justify-between items-center">
                     <div>
                       <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
@@ -1621,7 +1730,7 @@
 
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {data.customers.map((cust) => (
-                      <div key={cust.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                      <div key={cust.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="font-bold text-slate-900">{cust.name}</h3>
@@ -1645,7 +1754,7 @@
               {/* TAB 5: REVIEWS (/#/portal/reviews) */}
               {/* ------------------------------------------------------------- */}
               {currentPortalTab === 'reviews' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in-up">
                   <div className="flex justify-between items-center">
                     <div>
                       <h1 className="text-2xl font-bold text-slate-900">Reviews</h1>
@@ -1655,7 +1764,7 @@
 
                   <div className="grid md:grid-cols-3 gap-5">
                     {data.reviews.map((rev) => (
-                      <div key={rev.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                      <div key={rev.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
                         <div className="flex justify-between items-center">
                           <p className="font-bold text-slate-900">{rev.author}</p>
                           <div className="text-amber-400">
@@ -1680,7 +1789,7 @@
               {/* TAB 6: AUTOMATIONS (/#/portal/automations) */}
               {/* ------------------------------------------------------------- */}
               {currentPortalTab === 'automations' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in-up">
                   <div>
                     <h1 className="text-2xl font-bold text-slate-900">Automations</h1>
                     <p className="text-slate-500 text-sm">Automated triggers that run silently after customer actions.</p>
@@ -1688,7 +1797,7 @@
 
                   <div className="grid md:grid-cols-3 gap-5">
                     {data.automations.map((auto) => (
-                      <div key={auto.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                      <div key={auto.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold text-ember-600 uppercase">{auto.channel} Trigger</span>
                           <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ACTIVE</span>
@@ -1722,7 +1831,7 @@
               {/* TAB 7: SETTINGS (/#/portal/settings) */}
               {/* ------------------------------------------------------------- */}
               {currentPortalTab === 'settings' && (
-                <div className="space-y-6 max-w-2xl">
+                <div className="space-y-6 max-w-2xl animate-fade-in-up">
                   <div>
                     <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
                     <p className="text-slate-500 text-sm">Business preferences and account info.</p>
@@ -1734,12 +1843,12 @@
                       <input defaultValue="Northside Plumbing" className="w-full px-3 py-2 border rounded-lg text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Phone Line</label>
-                      <input defaultValue="(416) 555-0100" className="w-full px-3 py-2 border rounded-lg text-sm" />
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Owner Email</label>
+                      <input defaultValue="dexter125555@gmail.com" disabled className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-500 cursor-not-allowed" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
-                      <input defaultValue="hello@northsideplumbing.com" className="w-full px-3 py-2 border rounded-lg text-sm" />
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Phone Line</label>
+                      <input defaultValue="(416) 555-0100" className="w-full px-3 py-2 border rounded-lg text-sm" />
                     </div>
                     <button onClick={() => showToast('Settings saved!')} className="bg-slate-900 text-white font-semibold text-sm px-4 py-2 rounded-lg hover:bg-slate-800 transition">
                       Save Settings
@@ -1757,10 +1866,10 @@
           {/* Add Job Modal */}
           {modal.type === 'add_job' && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-fade-in-up">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold text-slate-900">Create New Job</h3>
-                  <button onClick={() => setModal({ type: null })} className="text-slate-400">✕</button>
+                  <button onClick={() => setModal({ type: null })} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 <form
                   onSubmit={(e) => {
@@ -1803,7 +1912,7 @@
                       <input name="price" type="number" defaultValue="250" className="w-full px-3 py-2 border rounded-lg" />
                     </div>
                   </div>
-                  <button type="submit" className="w-full bg-ember-500 hover:bg-ember-600 text-white font-semibold py-2.5 rounded-lg transition">
+                  <button type="submit" className="w-full bg-ember-500 hover:bg-ember-600 text-white font-semibold py-2.5 rounded-lg transition shadow">
                     Create Job
                   </button>
                 </form>
@@ -1814,10 +1923,10 @@
           {/* Add Lead Modal */}
           {modal.type === 'add_lead' && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-fade-in-up">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold text-slate-900">Add Lead</h3>
-                  <button onClick={() => setModal({ type: null })} className="text-slate-400">✕</button>
+                  <button onClick={() => setModal({ type: null })} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 <form
                   onSubmit={(e) => {
@@ -1844,7 +1953,7 @@
                     <label className="block text-xs font-semibold mb-1">Service Requested</label>
                     <input name="service" defaultValue="General Service" className="w-full px-3 py-2 border rounded-lg" />
                   </div>
-                  <button type="submit" className="w-full bg-ember-500 hover:bg-ember-600 text-white font-semibold py-2.5 rounded-lg transition">
+                  <button type="submit" className="w-full bg-ember-500 hover:bg-ember-600 text-white font-semibold py-2.5 rounded-lg transition shadow">
                     Save Lead
                   </button>
                 </form>
@@ -1855,7 +1964,7 @@
           {/* View Portfolio Project Modal */}
           {modal.type === 'view_project' && modal.data && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+              <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-fade-in-up">
                 <div className="flex justify-between items-center">
                   <div>
                     <span className="text-xs font-semibold text-ember-600 uppercase">{modal.data.type}</span>
@@ -1880,7 +1989,7 @@
                     setModal({ type: null });
                     window.location.hash = '#/contact';
                   }}
-                  className="w-full bg-ember-500 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-ember-600 transition"
+                  className="w-full bg-ember-500 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-ember-600 transition shadow"
                 >
                   Build a Similar System for My Business
                 </button>
