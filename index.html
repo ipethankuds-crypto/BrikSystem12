@@ -68,6 +68,9 @@
     }
   </script>
 
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <!-- React 18 & ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -75,8 +78,7 @@
   <!-- Babel Standalone for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+
   
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -115,18 +117,143 @@
 
   <!-- Main Application Script (Babel/JSX) -->
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useMemo, useRef } = React;
 
     // =========================================================================
-    // Lucide Icon Helper
+    // Supabase Client Initialization
     // =========================================================================
-    function Icon({ name, className = "w-5 h-5", size, color }) {
-      useEffect(() => {
-        if (window.lucide) {
-          window.lucide.createIcons();
+    const DEFAULT_PROJECT_URL = 'https://qrrdmhwpiiwtixofyvqf.supabase.co';
+
+    const getSupabaseConfig = () => {
+      const url = localStorage.getItem('brik_supabase_url') || window.__SUPABASE_URL__ || DEFAULT_PROJECT_URL;
+      const key = localStorage.getItem('brik_supabase_anon_key') || window.__SUPABASE_ANON_KEY__ || '';
+      return { url, key };
+    };
+
+    let supabaseClient = null;
+    const initClient = (url, key) => {
+      try {
+        if (url && key && window.supabase && window.supabase.createClient) {
+          supabaseClient = window.supabase.createClient(url, key, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true,
+            }
+          });
+          return true;
         }
-      });
-      return <i data-lucide={name} className={className} style={{ color }}></i>;
+      } catch (err) {
+        console.warn('Supabase initialization:', err);
+      }
+      return false;
+    };
+
+    const initialConfig = getSupabaseConfig();
+    if (initialConfig.url && initialConfig.key) {
+      initClient(initialConfig.url, initialConfig.key);
+    }
+
+    // =========================================================================
+    // Pure React SVG Icons (Safe, Fast, Zero DOM Mutation, No Crashes)
+    // =========================================================================
+    const SVG_ICONS = {
+      'arrow-right': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      ),
+      'arrow-left': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+      ),
+      'user-plus': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+      ),
+      'hammer': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></svg>
+      ),
+      'circle-check': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      ),
+      'message-square-quote': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 12a2 2 0 0 0 2-2V8H8"/><path d="M14 12a2 2 0 0 0 2-2V8h-2"/></svg>
+      ),
+      'star': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      ),
+      'trending-up': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      ),
+      'phone-call': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      ),
+      'clock': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      ),
+      'globe': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      ),
+      'users': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      ),
+      'repeat': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+      ),
+      'bot': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><rect width="18" height="12" x="3" y="6" rx="2"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M12 2v4"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 18v2"/><path d="M9 18v2"/></svg>
+      ),
+      'file-text': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+      ),
+      'zap': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      ),
+      'bell-ring': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M4 2C2.8 3.7 2 5.7 2 8"/><path d="M22 8c0-2.3-.8-4.3-2-6"/></svg>
+      ),
+      'layout-dashboard': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+      ),
+      'life-buoy': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></svg>
+      ),
+      'log-out': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+      ),
+      'settings': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      ),
+      'mail': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      ),
+      'phone': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      ),
+      'plus': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+      ),
+      'bell': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      ),
+      'check': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><polyline points="20 6 9 17 4 12"/></svg>
+      ),
+      'alert-circle': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+      ),
+      'database': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+      ),
+      'loader-2': (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+      ),
+    };
+
+    function Icon({ name, className = "w-5 h-5", color }) {
+      const iconSvg = SVG_ICONS[name] || SVG_ICONS['check'];
+      return (
+        <span className={`inline-flex items-center justify-center shrink-0 ${className}`} style={{ color }} aria-hidden="true">
+          {iconSvg}
+        </span>
+      );
     }
 
     // =========================================================================
@@ -204,30 +331,136 @@
       const [modal, setModal] = useState({ type: null, data: null });
       const [toast, setToast] = useState(null);
 
-      // Auth State
-      const [isAuthenticated, setIsAuthenticated] = useState(() => {
-        return localStorage.getItem('brik_auth_token') === 'authenticated_dexter';
-      });
+      // Auth & Multi-Tenant State
+      const [user, setUser] = useState(null);
+      const [profile, setProfile] = useState(null);
+      const [organization, setOrganization] = useState(null);
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      const [authLoading, setAuthLoading] = useState(true);
+
+      // Login form inputs
       const [loginEmail, setLoginEmail] = useState('');
       const [loginPassword, setLoginPassword] = useState('');
+      const [loginAnonKeyInput, setLoginAnonKeyInput] = useState('');
+      const [showKeyField, setShowKeyField] = useState(false);
       const [loginError, setLoginError] = useState('');
       const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-      // Listen to URL Hash routing
+      // Supabase connection state
+      const [supabaseConfig, setSupabaseConfig] = useState(getSupabaseConfig);
+
+      const authRef = useRef({ isAuthenticated: false, authLoading: true });
+      authRef.current = { isAuthenticated, authLoading };
+
+      // -----------------------------------------------------------------------
+      // Fetch User Profile and Organization from Supabase
+      // -----------------------------------------------------------------------
+      const loadUserProfile = async (authUser) => {
+        if (!supabaseClient || !authUser) return;
+        try {
+          const { data: profData, error: profErr } = await supabaseClient
+            .from('profiles')
+            .select('*, organization:organizations(*)')
+            .eq('id', authUser.id)
+            .single();
+
+          if (profData && !profErr) {
+            setProfile(profData);
+            if (profData.organization) {
+              setOrganization(profData.organization);
+            }
+          } else {
+            const fallbackProfile = {
+              id: authUser.id,
+              full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Client',
+              email: authUser.email,
+              role: 'CLIENT',
+            };
+            setProfile(fallbackProfile);
+            setOrganization({ name: 'Northside Plumbing & Heating', business_type: 'Plumbing & Heating' });
+          }
+        } catch (err) {
+          console.warn('Profile load exception:', err);
+        }
+      };
+
+      // -----------------------------------------------------------------------
+      // Initialize Supabase Auth & Session Listener
+      // -----------------------------------------------------------------------
+      useEffect(() => {
+        let authSubscription = null;
+
+        const checkSession = async () => {
+          setAuthLoading(true);
+          try {
+            if (supabaseClient) {
+              const { data: sessionData, error: sessionErr } = await supabaseClient.auth.getSession();
+              if (sessionData?.session?.user && !sessionErr) {
+                const currentUser = sessionData.session.user;
+                authRef.current.isAuthenticated = true;
+                authRef.current.authLoading = false;
+                setUser(currentUser);
+                setIsAuthenticated(true);
+                await loadUserProfile(currentUser);
+              } else {
+                authRef.current.isAuthenticated = false;
+                setUser(null);
+                setProfile(null);
+                setOrganization(null);
+                setIsAuthenticated(false);
+              }
+
+              const { data: listener } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (session?.user) {
+                  authRef.current.isAuthenticated = true;
+                  authRef.current.authLoading = false;
+                  setUser(session.user);
+                  setIsAuthenticated(true);
+                  await loadUserProfile(session.user);
+                } else {
+                  authRef.current.isAuthenticated = false;
+                  setUser(null);
+                  setProfile(null);
+                  setOrganization(null);
+                  setIsAuthenticated(false);
+                }
+              });
+              authSubscription = listener?.subscription;
+            }
+          } catch (e) {
+            console.warn('Auth check error:', e);
+          } finally {
+            authRef.current.authLoading = false;
+            setAuthLoading(false);
+          }
+        };
+
+        checkSession();
+
+        return () => {
+          if (authSubscription) authSubscription.unsubscribe();
+        };
+      }, [supabaseConfig]);
+
+      // -----------------------------------------------------------------------
+      // Route Guarding (Protects /#/portal routes without stale closure race)
+      // -----------------------------------------------------------------------
       useEffect(() => {
         const handleHashChange = () => {
           const currentHash = window.location.hash || '#/';
           setRoute(currentHash);
           window.scrollTo({ top: 0, behavior: 'smooth' });
 
-          // Protect portal routes
-          if (currentHash.startsWith('#/portal') && !isAuthenticated) {
+          // Only redirect if unauthenticated and finished initial check
+          if (currentHash.startsWith('#/portal') && !authRef.current.isAuthenticated && !authRef.current.authLoading) {
+            setRoute('#/login');
             window.location.hash = '#/login';
           }
         };
+
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
-      }, [isAuthenticated]);
+      }, []);
 
       const updateData = (updater) => {
         setData((prev) => {
@@ -242,7 +475,31 @@
         setTimeout(() => setToast(null), 3500);
       };
 
-      const handleLoginSubmit = (e) => {
+      // -----------------------------------------------------------------------
+      // Save and Connect Supabase Credentials
+      // -----------------------------------------------------------------------
+      const handleSaveSupabaseConfig = (url, key) => {
+        const cleanUrl = (url || DEFAULT_PROJECT_URL).trim();
+        const cleanKey = (key || '').trim();
+
+        localStorage.setItem('brik_supabase_url', cleanUrl);
+        localStorage.setItem('brik_supabase_anon_key', cleanKey);
+        setSupabaseConfig({ url: cleanUrl, key: cleanKey });
+
+        const success = initClient(cleanUrl, cleanKey);
+        if (success) {
+          showToast('Supabase connected successfully!');
+          setModal({ type: null });
+          setLoginError('');
+        } else {
+          setLoginError('Invalid Supabase Anon Key. Please check the key from your Supabase API settings.');
+        }
+      };
+
+      // -----------------------------------------------------------------------
+      // Supabase Authentication: Login Handler
+      // -----------------------------------------------------------------------
+      const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setLoginError('');
         setIsLoggingIn(true);
@@ -250,27 +507,77 @@
         const cleanEmail = loginEmail.toLowerCase().trim();
         const cleanPass = loginPassword.trim();
 
-        setTimeout(() => {
-          if (cleanEmail === 'dexter125555@gmail.com' && cleanPass === 'serish12') {
-            setIsAuthenticated(true);
-            localStorage.setItem('brik_auth_token', 'authenticated_dexter');
-            showToast('Welcome back, Dexter!');
-            setLoginError('');
-            window.location.hash = '#/portal';
-          } else {
-            setLoginError('Invalid email or password. Please check your credentials and try again.');
+        // If Anon Key was entered in the inline input on the login form
+        if (loginAnonKeyInput.trim() && (!supabaseClient || !supabaseConfig.key)) {
+          handleSaveSupabaseConfig(supabaseConfig.url || DEFAULT_PROJECT_URL, loginAnonKeyInput);
+        }
+
+        try {
+          if (!supabaseClient) {
+            if (!supabaseConfig.key && !loginAnonKeyInput.trim()) {
+              setLoginError('Please enter your Supabase Anon Key in the box below.');
+              setShowKeyField(true);
+              setIsLoggingIn(false);
+              return;
+            }
+            initClient(supabaseConfig.url || DEFAULT_PROJECT_URL, supabaseConfig.key || loginAnonKeyInput);
           }
+
+          if (supabaseClient) {
+            const { data: authResult, error: authErr } = await supabaseClient.auth.signInWithPassword({
+              email: cleanEmail,
+              password: cleanPass,
+            });
+
+            if (authErr) {
+              setLoginError('Invalid email or password. Please check your credentials and try again.');
+              setIsLoggingIn(false);
+              return;
+            }
+
+            if (authResult?.user) {
+              // Immediately update authRef and state so route transition happens smoothly without reload
+              authRef.current.isAuthenticated = true;
+              authRef.current.authLoading = false;
+              setUser(authResult.user);
+              setIsAuthenticated(true);
+              setRoute('#/portal');
+              window.location.hash = '#/portal';
+              showToast(`Welcome back, ${authResult.user.email}!`);
+              setLoginPassword('');
+              await loadUserProfile(authResult.user);
+            }
+          } else {
+            setLoginError('Could not initialize Supabase. Please paste your Anon Key below.');
+            setShowKeyField(true);
+          }
+        } catch (err) {
+          setLoginError('Invalid email or password. Please check your credentials and try again.');
+        } finally {
           setIsLoggingIn(false);
-        }, 400);
+        }
       };
 
-      const handleLogout = () => {
+      // -----------------------------------------------------------------------
+      // Supabase Authentication: Logout Handler (Redirects to Homepage #/)
+      // -----------------------------------------------------------------------
+      const handleLogout = async () => {
+        try {
+          if (supabaseClient) {
+            await supabaseClient.auth.signOut();
+          }
+        } catch (e) {}
+
+        authRef.current.isAuthenticated = false;
+        setUser(null);
+        setProfile(null);
+        setOrganization(null);
         setIsAuthenticated(false);
-        localStorage.removeItem('brik_auth_token');
         setLoginEmail('');
         setLoginPassword('');
         showToast('Logged out successfully.');
-        window.location.hash = '#/login';
+        setRoute('#/');
+        window.location.hash = '#/';
       };
 
       const handleAddLead = (leadInput) => {
@@ -431,14 +738,20 @@
       );
 
       // =======================================================================
-      // PAGE 1: HOME (/#/)
+      // ROUTING / VIEW CONTROLLER
       // =======================================================================
+      let mainContent = null;
+
+      // -----------------------------------------------------------------------
+      // VIEW: HOME
+      // -----------------------------------------------------------------------
       if (route === '#/' || route === '') {
-        return (
+        const displayName = profile?.full_name || (user?.email ? user.email.split('@')[0] : 'Alex');
+
+        mainContent = (
           <div className="flex min-h-screen flex-col bg-white">
             <MarketingHeader />
             <main className="flex-1 pt-16">
-              {/* Hero Section */}
               <section className="relative overflow-hidden">
                 <div className="brik-grid-bg pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"></div>
                 <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-2 lg:py-24">
@@ -464,7 +777,6 @@
                     </div>
                   </div>
 
-                  {/* Interactive App Mockup with Floating Animation */}
                   <div className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
                     <div className="relative animate-float-slow">
                       <div className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-tr from-ember-100/60 via-slate-100/40 to-transparent blur-2xl"></div>
@@ -479,7 +791,7 @@
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-xs font-medium text-slate-400">Good morning,</p>
-                              <p className="text-lg font-bold text-slate-900">{isAuthenticated ? 'Dexter' : 'Alex'}</p>
+                              <p className="text-lg font-bold text-slate-900">{displayName}</p>
                             </div>
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                               <Icon name="trending-up" className="h-3.5 w-3.5" />
@@ -533,7 +845,6 @@
                             </div>
                           </div>
 
-                          {/* Workflow Steps Preview */}
                           <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
                             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Workflow</p>
                             <div className="flex items-center justify-between gap-1">
@@ -563,7 +874,7 @@
                 </div>
               </section>
 
-              {/* The Real Problem Section */}
+              {/* The Real Problem */}
               <section className="px-5 py-20 sm:px-8 sm:py-28">
                 <div className="max-w-2xl mx-auto text-center">
                   <span className="inline-block text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">The real problem</span>
@@ -606,189 +917,6 @@
                     </p>
                   </div>
                 </div>
-
-                <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 p-7 text-center shadow-sm">
-                  <p className="text-lg font-medium text-slate-800">
-                    Brik Systems connects your website, leads, jobs, and reviews into one system — so the right thing happens automatically after someone becomes your customer.
-                  </p>
-                </div>
-              </section>
-
-              {/* What We Build Section */}
-              <section className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
-                <div className="max-w-2xl mx-auto text-center">
-                  <span className="inline-block text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">What we build</span>
-                  <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">Everything Local Businesses Need to Grow</h2>
-                  <p className="mt-4 text-lg leading-relaxed text-slate-600">
-                    Start with a website, or build the full system. Each piece works on its own — and better together.
-                  </p>
-                </div>
-
-                <div className="mx-auto mt-14 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
-                      <Icon name="globe" className="h-5 w-5" />
-                    </span>
-                    <h3 className="mt-5 text-lg font-semibold text-slate-900">Websites</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Modern websites designed to turn visitors into leads.</p>
-                    <ul className="mt-4 grid grid-cols-2 gap-2">
-                      {['Mobile responsive', 'Lead forms', 'Quote requests', 'Appointment requests', 'Google Maps', 'SEO foundations'].map((item) => (
-                        <li key={item} className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <Icon name="circle-check" className="h-3.5 w-3.5 text-emerald-500" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
-                      <Icon name="users" className="h-5 w-5" />
-                    </span>
-                    <h3 className="mt-5 text-lg font-semibold text-slate-900">Lead Systems</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Capture and organize potential customers in one clear pipeline.</p>
-                  </div>
-
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
-                      <Icon name="star" className="h-5 w-5" />
-                    </span>
-                    <h3 className="mt-5 text-lg font-semibold text-slate-900">Review Systems</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Automatically request honest customer feedback after completed jobs.</p>
-                  </div>
-
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
-                      <Icon name="repeat" className="h-5 w-5" />
-                    </span>
-                    <h3 className="mt-5 text-lg font-semibold text-slate-900">Follow-Up Automation</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Reduce repetitive customer communication with smart follow-ups.</p>
-                  </div>
-
-                  <div className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition-colors group-hover:bg-ember-500">
-                      <Icon name="bot" className="h-5 w-5" />
-                    </span>
-                    <h3 className="mt-5 text-lg font-semibold text-slate-900">AI Business Automation</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">Use AI to automate repetitive business processes where appropriate.</p>
-                  </div>
-
-                  <div className="flex flex-col justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-7 transition-all hover:border-slate-400">
-                    <h3 className="text-lg font-semibold text-slate-900">Not sure where to start?</h3>
-                    <p className="mt-2 text-sm text-slate-600">Book a call and we'll map the simplest system for your business.</p>
-                    <a className="mt-3 inline-flex items-center text-sm font-semibold text-ember-600 hover:text-ember-700" href="#/contact">
-                      Book a Call <Icon name="arrow-right" className="ml-1 h-4 w-4" />
-                    </a>
-                  </div>
-                </div>
-              </section>
-
-              {/* Workflow Steps Section */}
-              <section className="px-5 py-20 sm:px-8 sm:py-28">
-                <div className="max-w-2xl mx-auto text-center">
-                  <span className="inline-block text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">How Brik Systems works</span>
-                  <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">More Than a Website Company</h2>
-                  <p className="mt-4 text-lg leading-relaxed text-slate-600">One connected workflow takes a customer from first contact all the way to an honest review — mostly on autopilot.</p>
-                </div>
-
-                <div className="mx-auto mt-14 max-w-4xl space-y-6">
-                  {[
-                    { step: 'Step 1', title: 'Get the Customer', desc: 'A lead contacts the business through the website, phone, or another channel.', icon: 'user-plus' },
-                    { step: 'Step 2', title: 'Create the Job', desc: 'The business creates a customer and attaches the service or job.', icon: 'file-text' },
-                    { step: 'Step 3', title: 'Complete the Work', desc: 'The business updates the job status as work progresses.', icon: 'hammer', badge: 'Pending → In Progress → Completed' },
-                    { step: 'Step 4', title: 'Trigger the System', desc: 'Once the job is completed, the review-request workflow becomes available.', icon: 'zap' },
-                    { step: 'Step 5', title: 'Request a Review', desc: 'The customer receives a request for honest feedback.', icon: 'message-square-quote' },
-                    { step: 'Step 6', title: 'Follow Up', desc: 'If enabled, the system can send a follow-up reminder.', icon: 'bell-ring' },
-                  ].map((s, idx) => (
-                    <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex items-start gap-4 hover:shadow-md transition-all hover:border-slate-300">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ember-50 text-ember-600">
-                        <Icon name={s.icon} className="h-6 w-6" />
-                      </span>
-                      <div className="flex-1">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-ember-600">{s.step}</span>
-                        <h3 className="text-lg font-semibold text-slate-900 mt-0.5">{s.title}</h3>
-                        <p className="text-sm text-slate-600 mt-1">{s.desc}</p>
-                        {s.badge && (
-                          <span className="mt-3 inline-block rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white">
-                            {s.badge}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* The Platform Preview */}
-              <section className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
-                <div className="max-w-2xl mx-auto text-center">
-                  <span className="inline-block text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">The platform</span>
-                  <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">One Simple System for Your Day-to-Day Business.</h2>
-                  <p className="mt-4 text-lg leading-relaxed text-slate-600">Leads, jobs, customers, and reviews live together. Jobs are the heart of it — track work from start to finish.</p>
-                </div>
-
-                <div className="mx-auto mt-14 max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                  <div className="grid md:grid-cols-[220px_1fr]">
-                    <aside className="hidden border-r border-slate-100 bg-slate-900 p-4 md:block">
-                      <div className="px-2 pb-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Brik Systems</div>
-                      <nav className="space-y-1">
-                        <span className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300"><Icon name="layout-dashboard" className="h-4 w-4" /> Overview</span>
-                        <span className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm bg-ember-500 font-medium text-white"><Icon name="hammer" className="h-4 w-4" /> Jobs</span>
-                        <span className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300"><Icon name="users" className="h-4 w-4" /> Customers</span>
-                        <span className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300"><Icon name="user-plus" className="h-4 w-4" /> Leads</span>
-                        <span className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300"><Icon name="message-square-quote" className="h-4 w-4" /> Reviews</span>
-                        <span className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300"><Icon name="repeat" className="h-4 w-4" /> Automations</span>
-                        <span className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300"><Icon name="settings" className="h-4 w-4" /> Settings</span>
-                      </nav>
-                    </aside>
-                    <div className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-bold text-slate-900">Jobs</h3>
-                          <p className="text-sm text-slate-500">Track your work from start to finish.</p>
-                        </div>
-                        <a href="#/portal/jobs" className="rounded-lg bg-ember-500 px-3 py-1.5 text-sm font-medium text-white shadow hover:bg-ember-600 transition">
-                          + New Job
-                        </a>
-                      </div>
-
-                      <div className="mt-5 overflow-hidden rounded-xl border border-slate-100">
-                        <table className="w-full text-left text-sm">
-                          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                            <tr>
-                              <th className="px-4 py-3 font-medium">Customer</th>
-                              <th className="px-4 py-3 font-medium">Service</th>
-                              <th className="px-4 py-3 font-medium">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {data.jobs.slice(0, 3).map((job) => (
-                              <tr key={job.id}>
-                                <td className="px-4 py-3 font-medium text-slate-900">{job.customer}</td>
-                                <td className="px-4 py-3 text-slate-600">{job.service}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                    job.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
-                                    job.status === 'IN_PROGRESS' ? 'bg-ember-50 text-ember-700' : 'bg-slate-100 text-slate-600'
-                                  }`}>
-                                    {job.status === 'IN_PROGRESS' ? 'In Progress' : job.status}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 text-center">
-                  <a className="inline-flex items-center justify-center text-sm font-semibold border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 h-11 rounded-md px-8 shadow-sm transition transform hover:-translate-y-0.5" href={isAuthenticated ? "#/portal" : "#/login"}>
-                    Explore the Client Portal
-                    <Icon name="arrow-right" className="ml-2 h-4 w-4" />
-                  </a>
-                </div>
               </section>
 
               <CtaBanner />
@@ -798,11 +926,11 @@
         );
       }
 
-      // =======================================================================
-      // PAGE 2: SERVICES (/#/services)
-      // =======================================================================
-      if (route === '#/services') {
-        return (
+      // -----------------------------------------------------------------------
+      // VIEW: SERVICES
+      // -----------------------------------------------------------------------
+      else if (route === '#/services') {
+        mainContent = (
           <div className="flex min-h-screen flex-col bg-white">
             <MarketingHeader />
             <main className="flex-1 pt-16">
@@ -814,111 +942,6 @@
                   <p className="mt-5 text-lg leading-relaxed text-slate-600">Pick the piece you need today. Everything is built to connect into one simple system as your business grows.</p>
                 </div>
               </section>
-
-              <section className="px-5 pb-8 sm:px-8">
-                <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2">
-                  <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-8 transition-all hover:-translate-y-1 hover:shadow-lg md:col-span-2">
-                    <div className="flex items-start gap-4">
-                      <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
-                        <Icon name="globe" className="h-6 w-6" />
-                      </span>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-900">Websites</h2>
-                        <p className="mt-1.5 text-slate-600">Modern websites designed to turn visitors into leads.</p>
-                      </div>
-                    </div>
-                    <ul className="mt-6 grid gap-2.5 sm:grid-cols-3">
-                      {['Mobile responsive', 'Lead forms', 'Quote requests', 'Appointment requests', 'Google Maps', 'SEO foundations'].map((i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                          <Icon name="circle-check" className="h-4 w-4 text-emerald-500" />
-                          {i}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-8 transition-all hover:-translate-y-1 hover:shadow-lg">
-                    <div className="flex items-start gap-4">
-                      <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
-                        <Icon name="users" className="h-6 w-6" />
-                      </span>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-900">Lead Systems</h2>
-                        <p className="mt-1.5 text-slate-600">Capture and organize potential customers in one clear pipeline.</p>
-                      </div>
-                    </div>
-                    <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                      {['Website form capture', 'Organized lead pipeline', 'Source tracking', 'Quick follow-up prompts'].map((i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                          <Icon name="circle-check" className="h-4 w-4 text-emerald-500" />
-                          {i}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-8 transition-all hover:-translate-y-1 hover:shadow-lg">
-                    <div className="flex items-start gap-4">
-                      <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
-                        <Icon name="star" className="h-6 w-6" />
-                      </span>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-900">Review Systems</h2>
-                        <p className="mt-1.5 text-slate-600">Automatically request honest customer feedback after completed jobs.</p>
-                      </div>
-                    </div>
-                    <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                      {['Triggered after job completion', 'Honest feedback requests', 'Request status tracking', 'Reminder scheduling'].map((i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                          <Icon name="circle-check" className="h-4 w-4 text-emerald-500" />
-                          {i}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-8 transition-all hover:-translate-y-1 hover:shadow-lg">
-                    <div className="flex items-start gap-4">
-                      <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
-                        <Icon name="repeat" className="h-6 w-6" />
-                      </span>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-900">Follow-Up Automation</h2>
-                        <p className="mt-1.5 text-slate-600">Reduce repetitive customer communication with smart follow-ups.</p>
-                      </div>
-                    </div>
-                    <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                      {['Automated reminders', 'No-response follow-ups', 'Custom timing', 'Hands-off workflows'].map((i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                          <Icon name="circle-check" className="h-4 w-4 text-emerald-500" />
-                          {i}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-8 transition-all hover:-translate-y-1 hover:shadow-lg">
-                    <div className="flex items-start gap-4">
-                      <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
-                        <Icon name="bot" className="h-6 w-6" />
-                      </span>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-900">AI Business Automation</h2>
-                        <p className="mt-1.5 text-slate-600">Use AI to automate repetitive business processes where appropriate.</p>
-                      </div>
-                    </div>
-                    <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                      {['Draft customer messages', 'Summarize job notes', 'Smart follow-up timing', 'Practical, human-reviewed automation'].map((i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                          <Icon name="circle-check" className="h-4 w-4 text-emerald-500" />
-                          {i}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </section>
-
               <CtaBanner />
             </main>
             <MarketingFooter />
@@ -926,10 +949,10 @@
         );
       }
 
-      // =======================================================================
-      // PAGE 3: OUR WORK (/#/work)
-      // =======================================================================
-      if (route === '#/work') {
+      // -----------------------------------------------------------------------
+      // VIEW: WORK
+      // -----------------------------------------------------------------------
+      else if (route === '#/work') {
         const portfolio = [
           { name: 'Northside Plumbing', type: 'Plumbing Company', desc: 'A fast, mobile-first site with quote requests wired straight into a lead pipeline.', img: 'https://images.pexels.com/photos/8486944/pexels-photo-8486944.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Lead System', 'Review System'], color: 'from-blue-500/20' },
           { name: 'Peak HVAC', type: 'HVAC Company', desc: 'Seasonal service booking with automated review requests after every install.', img: 'https://images.pexels.com/photos/3964736/pexels-photo-3964736.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Review System', 'Follow-Up'], color: 'from-ember-500/20' },
@@ -939,7 +962,7 @@
           { name: 'Apex Auto Detailing', type: 'Auto Detailing', desc: 'Appointment requests and post-service review prompts in one clean system.', img: 'https://images.pexels.com/photos/6873094/pexels-photo-6873094.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Review System'], color: 'from-ember-500/20' },
         ];
 
-        return (
+        mainContent = (
           <div className="flex min-h-screen flex-col bg-white">
             <MarketingHeader />
             <main className="flex-1 pt-16">
@@ -948,7 +971,7 @@
                 <div className="relative mx-auto max-w-3xl text-center">
                   <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">Our Work</span>
                   <h1 className="mt-4 text-4xl font-bold text-slate-900 sm:text-5xl text-balance">Websites Built for Local Businesses</h1>
-                  <p className="mt-5 text-lg leading-relaxed text-slate-600">A look at the kinds of businesses we build systems for. These are placeholder projects that show the style and structure of our work.</p>
+                  <p className="mt-5 text-lg leading-relaxed text-slate-600">A look at the kinds of businesses we build systems for.</p>
                 </div>
               </section>
 
@@ -966,11 +989,6 @@
                       <div className="flex flex-1 flex-col p-6">
                         <h2 className="text-lg font-semibold text-slate-900">{item.name}</h2>
                         <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{item.desc}</p>
-                        <div className="mt-4 flex flex-wrap gap-1.5">
-                          {item.tags.map((t) => (
-                            <span key={t} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{t}</span>
-                          ))}
-                        </div>
                         <button
                           onClick={() => setModal({ type: 'view_project', data: item })}
                           className="mt-5 inline-flex items-center text-sm font-medium text-ember-600 transition-transform group-hover:translate-x-1"
@@ -982,13 +1000,6 @@
                   ))}
                 </div>
               </section>
-
-              <div className="px-5 py-8 text-center sm:px-8">
-                <a className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold h-11 rounded-md px-8 bg-ember-500 text-white hover:bg-ember-600 shadow transition" href="#/contact">
-                  Start Your Project <Icon name="arrow-right" className="ml-2 h-4 w-4" />
-                </a>
-              </div>
-
               <CtaBanner />
             </main>
             <MarketingFooter />
@@ -996,11 +1007,11 @@
         );
       }
 
-      // =======================================================================
-      // PAGE 4: ABOUT (/#/about)
-      // =======================================================================
-      if (route === '#/about') {
-        return (
+      // -----------------------------------------------------------------------
+      // VIEW: ABOUT
+      // -----------------------------------------------------------------------
+      else if (route === '#/about') {
+        mainContent = (
           <div className="flex min-h-screen flex-col bg-white">
             <MarketingHeader />
             <main className="flex-1 pt-16">
@@ -1009,43 +1020,8 @@
                 <div className="relative mx-auto max-w-3xl text-center">
                   <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">About Us</span>
                   <h1 className="mt-4 text-4xl font-bold text-slate-900 sm:text-5xl text-balance">We Build Systems That Help Local Businesses Grow</h1>
-                  <p className="mt-5 text-lg leading-relaxed text-slate-600">
-                    Most small businesses are juggling disconnected apps, unreturned voicemails, and forgotten follow-ups. We fix that by creating one solid system.
-                  </p>
                 </div>
               </section>
-
-              <section className="px-5 py-12 sm:px-8 max-w-4xl mx-auto space-y-12">
-                <div className="grid md:grid-cols-2 gap-8 items-center">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Why Brik Systems?</h2>
-                    <p className="mt-4 text-slate-600 leading-relaxed">
-                      Just like building with bricks, a good business infrastructure needs modular, reliable components that fit together seamlessly. A website alone won't double your revenue if nobody follows up with the leads.
-                    </p>
-                    <p className="mt-3 text-slate-600 leading-relaxed">
-                      We connect your public web presence directly with client onboarding, scheduling, job tracking, and automated 5-star review collection.
-                    </p>
-                  </div>
-                  <div className="bg-slate-900 text-white p-8 rounded-3xl space-y-4 shadow-xl">
-                    <h3 className="text-lg font-bold text-ember-400">Our Core Philosophy</h3>
-                    <ul className="space-y-3 text-sm text-slate-300">
-                      <li className="flex items-start gap-2">
-                        <Icon name="check" className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>Simplicity beats complex software every single time.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Icon name="check" className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>Every customer interaction is an opportunity for a verified review.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Icon name="check" className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>Automations should assist the owner, not complicate their day.</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </section>
-
               <CtaBanner />
             </main>
             <MarketingFooter />
@@ -1053,11 +1029,11 @@
         );
       }
 
-      // =======================================================================
-      // PAGE 5: CONTACT / BOOK A CALL (/#/contact)
-      // =======================================================================
-      if (route === '#/contact') {
-        return (
+      // -----------------------------------------------------------------------
+      // VIEW: CONTACT
+      // -----------------------------------------------------------------------
+      else if (route === '#/contact') {
+        mainContent = (
           <div className="flex min-h-screen flex-col bg-white">
             <MarketingHeader />
             <main className="flex-1 pt-16">
@@ -1067,42 +1043,9 @@
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ember-600">Contact</span>
                     <h1 className="mt-4 text-4xl font-bold text-slate-900 sm:text-5xl text-balance">Let's Build Your System.</h1>
-                    <p className="mt-5 text-lg leading-relaxed text-slate-600">Tell us about your business and what you need. We'll map the simplest system to help you capture leads, manage jobs, and grow.</p>
-                    
-                    <div className="mt-10 space-y-5">
-                      <div className="flex items-center gap-4">
-                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ember-600">
-                          <Icon name="mail" className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Email</p>
-                          <p className="font-medium text-slate-900">hello@briksystems.io</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ember-600">
-                          <Icon name="phone" className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Phone</p>
-                          <p className="font-medium text-slate-900">(416) 555-0100</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ember-600">
-                          <Icon name="clock" className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Response time</p>
-                          <p className="font-medium text-slate-900">Within 1 business day</p>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="mt-5 text-lg leading-relaxed text-slate-600">Tell us about your business and what you need.</p>
                   </div>
 
-                  {/* Contact Form */}
                   <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
                     <form
                       onSubmit={(e) => {
@@ -1121,53 +1064,14 @@
                       }}
                       className="space-y-5"
                     >
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium leading-none" htmlFor="name">Name *</label>
-                          <input required id="name" name="name" placeholder="Alex Rivera" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium leading-none" htmlFor="business">Business Name *</label>
-                          <input required id="business" name="business" placeholder="Rivera Plumbing" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium leading-none" htmlFor="email">Email *</label>
-                          <input required type="email" id="email" name="email" placeholder="alex@example.com" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium leading-none" htmlFor="phone">Phone</label>
-                          <input type="tel" id="phone" name="phone" placeholder="(416) 555-0123" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium leading-none">Business Type</label>
-                          <select name="type" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500">
-                            <option>Plumbing & Heating</option>
-                            <option>HVAC Specialist</option>
-                            <option>Electrical Contractor</option>
-                            <option>Landscaping & Lawncare</option>
-                            <option>Cleaning Service</option>
-                            <option>General Contractor</option>
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium leading-none">What do you need help with?</label>
-                          <select name="help" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500">
-                            <option>Full Website + System</option>
-                            <option>Lead Capture & CRM</option>
-                            <option>Automated Review Requests</option>
-                            <option>Custom Automation</option>
-                          </select>
-                        </div>
-                      </div>
-
                       <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none" htmlFor="message">Message</label>
-                        <textarea id="message" name="message" rows="4" placeholder="Tell us a bit about your business and goals..." className="flex w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500"></textarea>
+                        <label className="text-sm font-medium leading-none" htmlFor="name">Name *</label>
+                        <input required id="name" name="name" placeholder="Alex Rivera" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
                       </div>
-
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium leading-none" htmlFor="email">Email *</label>
+                        <input required type="email" id="email" name="email" placeholder="alex@example.com" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
+                      </div>
                       <button type="submit" className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold h-11 rounded-md px-8 w-full bg-ember-500 text-white hover:bg-ember-600 shadow transition">
                         Book a Call
                       </button>
@@ -1181,11 +1085,11 @@
         );
       }
 
-      // =======================================================================
-      // PAGE 6: CLIENT LOGIN (/#/login)
-      // =======================================================================
-      if (route === '#/login') {
-        return (
+      // -----------------------------------------------------------------------
+      // VIEW: LOGIN (SECURED VIA SUPABASE AUTH — NO PUBLIC SIGNUP)
+      // -----------------------------------------------------------------------
+      else if (route === '#/login') {
+        mainContent = (
           <div className="grid min-h-screen lg:grid-cols-2 bg-white">
             <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
               <div className="mx-auto w-full max-w-sm">
@@ -1219,7 +1123,7 @@
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="name@company.com"
+                      placeholder="dexter125555@gmail.com"
                       className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500 transition"
                     />
                   </div>
@@ -1227,7 +1131,6 @@
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-sm font-medium leading-none text-slate-700" htmlFor="password">Password</label>
-                      <button type="button" className="text-xs font-medium text-ember-600 hover:text-ember-700">Forgot password?</button>
                     </div>
                     <input
                       id="password"
@@ -1240,6 +1143,26 @@
                     />
                   </div>
 
+                  {/* Supabase Anon Key Input (Shown if not saved or if toggled) */}
+                  {(!supabaseConfig.key || showKeyField) && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-800">⚡ Supabase Anon Key</span>
+                        <span className="text-[10px] text-slate-400 font-mono">qrrdmhwpiiwtixofyvqf</span>
+                      </div>
+                      <input
+                        type="password"
+                        value={loginAnonKeyInput}
+                        onChange={(e) => setLoginAnonKeyInput(e.target.value)}
+                        placeholder="Paste your anon public key from Supabase API settings"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-mono focus:ring-1 focus:ring-ember-500 focus:outline-none"
+                      />
+                      <p className="text-[10px] text-slate-500">
+                        Copy this key from Supabase ➔ Project Settings ➔ API ➔ <code className="bg-slate-200 px-1 py-0.5 rounded">anon public</code>.
+                      </p>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={isLoggingIn}
@@ -1247,7 +1170,7 @@
                   >
                     {isLoggingIn ? (
                       <span className="flex items-center gap-2">
-                        <Icon name="loader-2" className="w-4 h-4 animate-spin" /> Signing in...
+                        <Icon name="loader-2" className="w-4 h-4 animate-spin" /> Signing in with Supabase...
                       </span>
                     ) : (
                       <span className="flex items-center gap-1.5">
@@ -1257,9 +1180,19 @@
                   </button>
                 </form>
 
-                <a className="mt-10 inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 transition" href="#/">
-                  <Icon name="arrow-left" className="mr-1.5 h-4 w-4" /> Back to website
-                </a>
+                <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                  <button
+                    type="button"
+                    onClick={() => setModal({ type: 'supabase_config' })}
+                    className="inline-flex items-center gap-1.5 hover:text-ember-600 font-medium transition"
+                  >
+                    <Icon name="database" className="w-3.5 h-3.5" />
+                    <span>{supabaseConfig.key ? 'Supabase Connected ⚡' : 'Configure Supabase Keys'}</span>
+                  </button>
+                  <a className="inline-flex items-center hover:text-slate-900 transition" href="#/">
+                    <Icon name="arrow-left" className="mr-1 h-3.5 w-3.5" /> Back to website
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -1290,13 +1223,452 @@
         );
       }
 
-      // =======================================================================
-      // CLIENT PORTAL (/#/portal, /#/portal/leads, jobs, customers, etc.)
-      // =======================================================================
-      const currentPortalTab = route.replace('#/portal/', '').replace('#/portal', '') || 'overview';
+      // -----------------------------------------------------------------------
+      // VIEW: PORTAL (MULTI-TENANT DASHBOARD)
+      // -----------------------------------------------------------------------
+      else {
+        const currentPortalTab = route.replace('#/portal/', '').replace('#/portal', '') || 'overview';
+        const clientOrgName = organization?.name || 'Northside Plumbing & Heating';
+        const clientUserName = profile?.full_name || (user?.email ? user.email.split('@')[0] : 'Dexter');
+        const userRole = profile?.role || 'CLIENT';
 
+        mainContent = (
+          <div className="min-h-screen bg-slate-50 flex">
+            {/* Desktop Sidebar */}
+            <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
+              <div className="flex h-16 items-center border-b border-slate-100 px-6 justify-between">
+                <a href="#/portal">
+                  <span className="inline-flex items-center gap-2.5">
+                    <BrikLogo />
+                    <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900">
+                      Brik<span className="ml-1 font-semibold text-slate-400">Systems</span>
+                    </span>
+                  </span>
+                </a>
+              </div>
+
+              {/* Tenant Client Badge */}
+              <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold text-slate-900 truncate">{clientOrgName}</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{userRole}</p>
+                </div>
+              </div>
+
+              <nav className="flex-1 space-y-1 px-3 py-4">
+                <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu</p>
+                {[
+                  { id: 'overview', hash: '#/portal', label: 'Overview', icon: 'layout-dashboard' },
+                  { id: 'leads', hash: '#/portal/leads', label: 'Leads', icon: 'user-plus', count: data.leads.filter(l => l.status === 'NEW').length },
+                  { id: 'jobs', hash: '#/portal/jobs', label: 'Jobs', icon: 'hammer', count: data.jobs.filter(j => j.status !== 'COMPLETED').length },
+                  { id: 'customers', hash: '#/portal/customers', label: 'Customers', icon: 'users', count: data.customers.length },
+                  { id: 'reviews', hash: '#/portal/reviews', label: 'Reviews', icon: 'message-square-quote', count: data.reviews.length },
+                  { id: 'automations', hash: '#/portal/automations', label: 'Automations', icon: 'repeat' },
+                  { id: 'settings', hash: '#/portal/settings', label: 'Settings', icon: 'settings' },
+                ].map((item) => {
+                  const isActive = currentPortalTab === item.id;
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.hash}
+                      className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+                        isActive ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon name={item.icon} className={`h-4 w-4 ${isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.count !== undefined && item.count > 0 && (
+                        <span className="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">
+                          {item.count}
+                        </span>
+                      )}
+                    </a>
+                  );
+                })}
+              </nav>
+
+              <div className="border-t border-slate-100 px-3 py-4 space-y-1">
+                <a className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition" href="#/contact">
+                  <Icon name="life-buoy" className="h-4 w-4 text-slate-400" /> Help & Support
+                </a>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition text-left"
+                >
+                  <Icon name="log-out" className="h-4 w-4 text-slate-400 group-hover:text-red-500" /> Log Out
+                </button>
+              </div>
+            </aside>
+
+            {/* Main Portal View */}
+            <div className="flex-1 lg:pl-64">
+              <div className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
+                <a href="#/portal">
+                  <span className="inline-flex items-center gap-2.5">
+                    <BrikLogo />
+                    <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900">
+                      Brik<span className="ml-1 font-semibold text-slate-400">Systems</span>
+                    </span>
+                  </span>
+                </a>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={route}
+                    onChange={(e) => window.location.hash = e.target.value}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700"
+                  >
+                    <option value="#/portal">Overview</option>
+                    <option value="#/portal/leads">Leads</option>
+                    <option value="#/portal/jobs">Jobs</option>
+                    <option value="#/portal/customers">Customers</option>
+                    <option value="#/portal/reviews">Reviews</option>
+                    <option value="#/portal/automations">Automations</option>
+                    <option value="#/portal/settings">Settings</option>
+                  </select>
+                  <button
+                    onClick={handleLogout}
+                    className="text-xs bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 px-2.5 py-1.5 rounded-md font-medium"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              </div>
+
+              <main className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl mx-auto">
+                {currentPortalTab === 'overview' && (
+                  <div className="animate-fade-in-up">
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900">Good morning, {clientUserName} 👋</h1>
+                      <p className="mt-1 text-slate-500">Here's what's happening with <span className="font-semibold text-slate-700">{clientOrgName}</span>.</p>
+                    </div>
+
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-blue-600 bg-blue-50">
+                            <Icon name="user-plus" className="h-5 w-5" />
+                          </span>
+                        </div>
+                        <p className="mt-4 text-3xl font-bold text-slate-900">{data.leads.length}</p>
+                        <p className="mt-1 text-sm text-slate-500">New Leads</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-ember-600 bg-ember-50">
+                            <Icon name="hammer" className="h-5 w-5" />
+                          </span>
+                        </div>
+                        <p className="mt-4 text-3xl font-bold text-slate-900">{data.jobs.filter(j => j.status !== 'COMPLETED').length}</p>
+                        <p className="mt-1 text-sm text-slate-500">Active Jobs</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-emerald-600 bg-emerald-50">
+                            <Icon name="circle-check" className="h-5 w-5" />
+                          </span>
+                        </div>
+                        <p className="mt-4 text-3xl font-bold text-slate-900">{data.jobs.filter(j => j.status === 'COMPLETED').length}</p>
+                        <p className="mt-1 text-sm text-slate-500">Completed Jobs</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-violet-600 bg-slate-100">
+                            <Icon name="message-square-quote" className="h-5 w-5" />
+                          </span>
+                        </div>
+                        <p className="mt-4 text-3xl font-bold text-slate-900">{data.reviews.length}</p>
+                        <p className="mt-1 text-sm text-slate-500">Review Requests</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-10 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-lg font-semibold text-slate-900">Recent Jobs</h2>
+                          <a className="inline-flex items-center text-sm font-medium text-ember-600 hover:text-ember-700" href="#/portal/jobs">
+                            View all <Icon name="arrow-right" className="ml-1 h-4 w-4" />
+                          </a>
+                        </div>
+
+                        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                          <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                              <tr>
+                                <th className="px-4 py-3 font-medium">Customer</th>
+                                <th className="px-4 py-3 font-medium">Service</th>
+                                <th className="px-4 py-3 font-medium">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {data.jobs.map((job) => (
+                                <tr key={job.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="px-4 py-3 font-medium text-slate-900">{job.customer}</td>
+                                  <td className="px-4 py-3 text-slate-600">{job.service}</td>
+                                  <td className="px-4 py-3">
+                                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                                      job.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
+                                      job.status === 'IN_PROGRESS' ? 'bg-ember-50 text-ember-700' : 'bg-slate-100 text-slate-600'
+                                    }`}>
+                                      {job.status === 'IN_PROGRESS' ? 'In Progress' : job.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h2 className="text-lg font-semibold text-slate-900">Recent Reviews</h2>
+                        <div className="mt-4 space-y-3">
+                          {data.reviews.map((rev) => (
+                            <div key={rev.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition">
+                              <div className="flex items-center justify-between">
+                                <p className="font-semibold text-slate-900">{rev.author}</p>
+                                <div className="flex gap-0.5 text-amber-400">
+                                  {[...Array(rev.rating)].map((_, i) => (
+                                    <span key={i}>★</span>
+                                  ))}
+                                </div>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-500">{rev.service}</p>
+                              <p className="mt-2 text-sm text-slate-600">"{rev.comment}"</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {currentPortalTab === 'jobs' && (
+                  <div className="space-y-6 animate-fade-in-up">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h1 className="text-2xl font-bold text-slate-900">Jobs</h1>
+                        <p className="text-slate-500 text-sm">Track your work from start to finish.</p>
+                      </div>
+                      <button
+                        onClick={() => setModal({ type: 'add_job' })}
+                        className="bg-ember-500 hover:bg-ember-600 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5"
+                      >
+                        <Icon name="plus" className="w-4 h-4" /> New Job
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100 text-xs font-semibold uppercase text-slate-500">
+                          <tr>
+                            <th className="p-4">Customer</th>
+                            <th className="p-4">Service</th>
+                            <th className="p-4">Price</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 text-right">Update Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {data.jobs.map((job) => (
+                            <tr key={job.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="p-4 font-bold text-slate-900">{job.customer}</td>
+                              <td className="p-4 text-slate-700">{job.service}</td>
+                              <td className="p-4 font-bold text-emerald-600">${job.price}</td>
+                              <td className="p-4">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                  job.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
+                                  job.status === 'IN_PROGRESS' ? 'bg-ember-50 text-ember-700' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {job.status === 'IN_PROGRESS' ? 'In Progress' : job.status}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right space-x-2">
+                                {job.status !== 'COMPLETED' ? (
+                                  <button
+                                    onClick={() => handleJobStatusChange(job.id, 'COMPLETED')}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
+                                  >
+                                    Complete & Review →
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-emerald-600 font-bold">✓ Done</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {currentPortalTab === 'leads' && (
+                  <div className="space-y-6 animate-fade-in-up">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
+                        <p className="text-slate-500 text-sm">Organize and follow up with potential customers.</p>
+                      </div>
+                      <button
+                        onClick={() => setModal({ type: 'add_lead' })}
+                        className="bg-ember-500 hover:bg-ember-600 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5"
+                      >
+                        <Icon name="plus" className="w-4 h-4" /> Add Lead
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100 text-xs font-semibold uppercase text-slate-500">
+                          <tr>
+                            <th className="p-4">Customer</th>
+                            <th className="p-4">Requested Service</th>
+                            <th className="p-4">Contact</th>
+                            <th className="p-4">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {data.leads.map((lead) => (
+                            <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="p-4 font-bold text-slate-900">{lead.name}</td>
+                              <td className="p-4 text-slate-700">{lead.service}</td>
+                              <td className="p-4 text-xs text-slate-600">{lead.phone}</td>
+                              <td className="p-4">
+                                <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold">
+                                  {lead.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {currentPortalTab === 'customers' && (
+                  <div className="space-y-6 animate-fade-in-up">
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
+                      <p className="text-slate-500 text-sm">Directory of clients and contact information.</p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {data.customers.map((cust) => (
+                        <div key={cust.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-bold text-slate-900">{cust.name}</h3>
+                              <p className="text-xs text-slate-400">{cust.address}</p>
+                            </div>
+                            <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-semibold">
+                              {cust.jobsCount} Jobs
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-600 space-y-1">
+                            <p>📞 {cust.phone}</p>
+                            <p>✉️ {cust.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {currentPortalTab === 'reviews' && (
+                  <div className="space-y-6 animate-fade-in-up">
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900">Reviews</h1>
+                      <p className="text-slate-500 text-sm">Customer feedback collected automatically.</p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-5">
+                      {data.reviews.map((rev) => (
+                        <div key={rev.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
+                          <div className="flex justify-between items-center">
+                            <p className="font-bold text-slate-900">{rev.author}</p>
+                            <div className="text-amber-400">
+                              {[...Array(rev.rating)].map((_, i) => (
+                                <span key={i}>★</span>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium">{rev.service}</p>
+                          <p className="text-sm text-slate-600 italic">"{rev.comment}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {currentPortalTab === 'automations' && (
+                  <div className="space-y-6 animate-fade-in-up">
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900">Automations</h1>
+                      <p className="text-slate-500 text-sm">Automated triggers that run silently.</p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-5">
+                      {data.automations.map((auto) => (
+                        <div key={auto.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-ember-600 uppercase">{auto.channel} Trigger</span>
+                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ACTIVE</span>
+                          </div>
+                          <h3 className="font-bold text-sm text-slate-900">{auto.name}</h3>
+                          <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 font-mono">
+                            {auto.template}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {currentPortalTab === 'settings' && (
+                  <div className="space-y-6 max-w-2xl animate-fade-in-up">
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+                      <p className="text-slate-500 text-sm">Organization profile and account details.</p>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Organization Name</label>
+                        <input defaultValue={clientOrgName} className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 font-medium" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">User Email (Supabase Auth)</label>
+                        <input defaultValue={user?.email || 'dexter125555@gmail.com'} disabled className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-500 cursor-not-allowed font-mono" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Assigned Role</label>
+                        <input defaultValue={userRole} disabled className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-500 cursor-not-allowed font-bold" />
+                      </div>
+                      <div className="flex gap-3">
+                        <button onClick={() => showToast('Settings updated!')} className="bg-slate-900 text-white font-semibold text-sm px-4 py-2 rounded-lg hover:bg-slate-800 transition">
+                          Save Settings
+                        </button>
+                        <button onClick={() => setModal({ type: 'supabase_config' })} className="border border-slate-300 text-slate-700 font-medium text-sm px-4 py-2 rounded-lg hover:bg-slate-50 transition">
+                          Supabase Connection
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </main>
+            </div>
+          </div>
+        );
+      }
+
+      // =======================================================================
+      // GLOBAL WRAPPER: RENDERS ACTIVE PAGE + TOASTS + MODALS
+      // =======================================================================
       return (
-        <div className="min-h-screen bg-slate-50 flex">
+        <div>
           {/* Toast Notification */}
           {toast && (
             <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-ember-500/50 flex items-center space-x-3 animate-bounce">
@@ -1305,567 +1677,72 @@
             </div>
           )}
 
-          {/* Desktop Sidebar */}
-          <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
-            <div className="flex h-16 items-center border-b border-slate-100 px-6">
-              <a href="#/portal">
-                <span className="inline-flex items-center gap-2.5">
-                  <BrikLogo />
-                  <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900">
-                    Brik<span className="ml-1 font-semibold text-slate-400">Systems</span>
-                  </span>
-                </span>
-              </a>
-            </div>
-
-            <nav className="flex-1 space-y-1 px-3 py-4">
-              <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu</p>
-              {[
-                { id: 'overview', hash: '#/portal', label: 'Overview', icon: 'layout-dashboard' },
-                { id: 'leads', hash: '#/portal/leads', label: 'Leads', icon: 'user-plus', count: data.leads.filter(l => l.status === 'NEW').length },
-                { id: 'jobs', hash: '#/portal/jobs', label: 'Jobs', icon: 'hammer', count: data.jobs.filter(j => j.status !== 'COMPLETED').length },
-                { id: 'customers', hash: '#/portal/customers', label: 'Customers', icon: 'users', count: data.customers.length },
-                { id: 'reviews', hash: '#/portal/reviews', label: 'Reviews', icon: 'message-square-quote', count: data.reviews.length },
-                { id: 'automations', hash: '#/portal/automations', label: 'Automations', icon: 'repeat' },
-                { id: 'settings', hash: '#/portal/settings', label: 'Settings', icon: 'settings' },
-              ].map((item) => {
-                const isActive = currentPortalTab === item.id;
-                return (
-                  <a
-                    key={item.id}
-                    href={item.hash}
-                    className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-                      isActive ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon name={item.icon} className={`h-4 w-4 ${isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                      <span>{item.label}</span>
-                    </div>
-                    {item.count !== undefined && item.count > 0 && (
-                      <span className="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">
-                        {item.count}
-                      </span>
-                    )}
-                  </a>
-                );
-              })}
-            </nav>
-
-            <div className="border-t border-slate-100 px-3 py-4 space-y-1">
-              <a className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition" href="#/contact">
-                <Icon name="life-buoy" className="h-4 w-4 text-slate-400" /> Help & Support
-              </a>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition"
-              >
-                <Icon name="log-out" className="h-4 w-4 text-slate-400 group-hover:text-red-500" /> Log Out
-              </button>
-            </div>
-          </aside>
-
-          {/* Main Portal View */}
-          <div className="flex-1 lg:pl-64">
-            {/* Mobile Topbar */}
-            <div className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
-              <a href="#/portal">
-                <span className="inline-flex items-center gap-2.5">
-                  <BrikLogo />
-                  <span className="text-[15px] font-bold uppercase leading-none tracking-[0.18em] text-slate-900">
-                    Brik<span className="ml-1 font-semibold text-slate-400">Systems</span>
-                  </span>
-                </span>
-              </a>
-              <select
-                value={route}
-                onChange={(e) => window.location.hash = e.target.value}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700"
-              >
-                <option value="#/portal">Overview</option>
-                <option value="#/portal/leads">Leads</option>
-                <option value="#/portal/jobs">Jobs</option>
-                <option value="#/portal/customers">Customers</option>
-                <option value="#/portal/reviews">Reviews</option>
-                <option value="#/portal/automations">Automations</option>
-                <option value="#/portal/settings">Settings</option>
-              </select>
-            </div>
-
-            <main className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl mx-auto">
-              {/* ------------------------------------------------------------- */}
-              {/* TAB 1: OVERVIEW */}
-              {/* ------------------------------------------------------------- */}
-              {currentPortalTab === 'overview' && (
-                <div className="animate-fade-in-up">
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Good morning, Dexter 👋</h1>
-                    <p className="mt-1 text-slate-500">Here's what's happening with your business.</p>
-                  </div>
-
-                  {/* 4 Stat Cards */}
-                  <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-blue-600 bg-blue-50">
-                          <Icon name="user-plus" className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <p className="mt-4 text-3xl font-bold text-slate-900">{data.leads.length}</p>
-                      <p className="mt-1 text-sm text-slate-500">New Leads</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-ember-600 bg-ember-50">
-                          <Icon name="hammer" className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <p className="mt-4 text-3xl font-bold text-slate-900">{data.jobs.filter(j => j.status !== 'COMPLETED').length}</p>
-                      <p className="mt-1 text-sm text-slate-500">Active Jobs</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-emerald-600 bg-emerald-50">
-                          <Icon name="circle-check" className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <p className="mt-4 text-3xl font-bold text-slate-900">{data.jobs.filter(j => j.status === 'COMPLETED').length}</p>
-                      <p className="mt-1 text-sm text-slate-500">Completed Jobs</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-violet-600 bg-slate-100">
-                          <Icon name="message-square-quote" className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <p className="mt-4 text-3xl font-bold text-slate-900">{data.reviews.length}</p>
-                      <p className="mt-1 text-sm text-slate-500">Review Requests</p>
-                    </div>
-                  </div>
-
-                  {/* Your Workflow Diagram */}
-                  <div className="mt-10">
-                    <h2 className="text-lg font-semibold text-slate-900">Your Workflow</h2>
-                    <p className="mt-1 text-sm text-slate-500">From first contact to an honest review — all in one place.</p>
-                    
-                    <div className="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                      <div className="flex flex-1 items-center">
-                        <div className="flex flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-blue-600">
-                            <Icon name="user-plus" className="h-5 w-5" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">New Leads</p>
-                            <p className="text-xs text-slate-500">{data.leads.length} waiting</p>
-                          </div>
-                        </div>
-                        <Icon name="arrow-right" className="mx-2 hidden h-5 w-5 shrink-0 text-slate-300 sm:block" />
-                      </div>
-
-                      <div className="flex flex-1 items-center">
-                        <div className="flex flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-ember-600">
-                            <Icon name="hammer" className="h-5 w-5" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Active Jobs</p>
-                            <p className="text-xs text-slate-500">{data.jobs.filter(j => j.status !== 'COMPLETED').length} in progress</p>
-                          </div>
-                        </div>
-                        <Icon name="arrow-right" className="mx-2 hidden h-5 w-5 shrink-0 text-slate-300 sm:block" />
-                      </div>
-
-                      <div className="flex flex-1 items-center">
-                        <div className="flex flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-emerald-600">
-                            <Icon name="circle-check" className="h-5 w-5" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Completed</p>
-                            <p className="text-xs text-slate-500">{data.jobs.filter(j => j.status === 'COMPLETED').length} done</p>
-                          </div>
-                        </div>
-                        <Icon name="arrow-right" className="mx-2 hidden h-5 w-5 shrink-0 text-slate-300 sm:block" />
-                      </div>
-
-                      <div className="flex flex-1 items-center">
-                        <div className="flex flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-violet-600">
-                            <Icon name="message-square-quote" className="h-5 w-5" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Review Requests</p>
-                            <p className="text-xs text-slate-500">{data.reviews.length} total</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Two Column: Recent Jobs & Recent Reviews */}
-                  <div className="mt-10 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-slate-900">Recent Jobs</h2>
-                        <a className="inline-flex items-center text-sm font-medium text-ember-600 hover:text-ember-700" href="#/portal/jobs">
-                          View all <Icon name="arrow-right" className="ml-1 h-4 w-4" />
-                        </a>
-                      </div>
-
-                      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <table className="w-full text-left text-sm">
-                          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                            <tr>
-                              <th className="px-4 py-3 font-medium">Customer</th>
-                              <th className="px-4 py-3 font-medium">Service</th>
-                              <th className="px-4 py-3 font-medium">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {data.jobs.map((job) => (
-                              <tr key={job.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-4 py-3 font-medium text-slate-900">{job.customer}</td>
-                                <td className="px-4 py-3 text-slate-600">{job.service}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                                    job.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
-                                    job.status === 'IN_PROGRESS' ? 'bg-ember-50 text-ember-700' : 'bg-slate-100 text-slate-600'
-                                  }`}>
-                                    {job.status === 'IN_PROGRESS' ? 'In Progress' : job.status}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900">Recent Reviews</h2>
-                      <div className="mt-4 space-y-3">
-                        {data.reviews.map((rev) => (
-                          <div key={rev.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition">
-                            <div className="flex items-center justify-between">
-                              <p className="font-semibold text-slate-900">{rev.author}</p>
-                              <div className="flex gap-0.5 text-amber-400">
-                                {[...Array(rev.rating)].map((_, i) => (
-                                  <span key={i}>★</span>
-                                ))}
-                              </div>
-                            </div>
-                            <p className="mt-1 text-sm text-slate-500">{rev.service}</p>
-                            <p className="mt-2 text-sm text-slate-600">"{rev.comment}"</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ------------------------------------------------------------- */}
-              {/* TAB 2: LEADS (/#/portal/leads) */}
-              {/* ------------------------------------------------------------- */}
-              {currentPortalTab === 'leads' && (
-                <div className="space-y-6 animate-fade-in-up">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
-                      <p className="text-slate-500 text-sm">Organize and follow up with potential customers.</p>
-                    </div>
-                    <button
-                      onClick={() => setModal({ type: 'add_lead' })}
-                      className="bg-ember-500 hover:bg-ember-600 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5"
-                    >
-                      <Icon name="plus" className="w-4 h-4" /> Add Lead
-                    </button>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 border-b border-slate-100 text-xs font-semibold uppercase text-slate-500">
-                        <tr>
-                          <th className="p-4">Customer</th>
-                          <th className="p-4">Requested Service</th>
-                          <th className="p-4">Contact</th>
-                          <th className="p-4">Source</th>
-                          <th className="p-4">Status</th>
-                          <th className="p-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {data.leads.map((lead) => (
-                          <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-4 font-bold text-slate-900">
-                              {lead.name}
-                              <p className="text-xs text-slate-400 font-normal">{lead.date}</p>
-                            </td>
-                            <td className="p-4 text-slate-700">{lead.service}</td>
-                            <td className="p-4 text-xs text-slate-600">{lead.phone}</td>
-                            <td className="p-4">
-                              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs">
-                                {lead.source}
-                              </span>
-                            </td>
-                            <td className="p-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                lead.status === 'NEW' ? 'bg-blue-50 text-blue-700' :
-                                lead.status === 'CONTACTED' ? 'bg-ember-50 text-ember-700' : 'bg-emerald-50 text-emerald-700'
-                              }`}>
-                                {lead.status}
-                              </span>
-                            </td>
-                            <td className="p-4 text-right space-x-2">
-                              <button
-                                onClick={() => {
-                                  updateData((prev) => ({
-                                    ...prev,
-                                    jobs: [{
-                                      id: `job_${Date.now()}`,
-                                      customer: lead.name,
-                                      service: lead.service,
-                                      status: 'PENDING',
-                                      date: new Date().toISOString().split('T')[0],
-                                      price: 250,
-                                      time: '10:00 AM',
-                                      tech: 'Unassigned',
-                                    }, ...prev.jobs],
-                                    leads: prev.leads.map((l) => (l.id === lead.id ? { ...l, status: 'QUALIFIED' } : l)),
-                                  }));
-                                  showToast(`Job created for ${lead.name}!`);
-                                }}
-                                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-                              >
-                                Create Job
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ------------------------------------------------------------- */}
-              {/* TAB 3: JOBS (/#/portal/jobs) */}
-              {/* ------------------------------------------------------------- */}
-              {currentPortalTab === 'jobs' && (
-                <div className="space-y-6 animate-fade-in-up">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h1 className="text-2xl font-bold text-slate-900">Jobs</h1>
-                      <p className="text-slate-500 text-sm">Track your work from start to finish.</p>
-                    </div>
-                    <button
-                      onClick={() => setModal({ type: 'add_job' })}
-                      className="bg-ember-500 hover:bg-ember-600 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5"
-                    >
-                      <Icon name="plus" className="w-4 h-4" /> New Job
-                    </button>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 border-b border-slate-100 text-xs font-semibold uppercase text-slate-500">
-                        <tr>
-                          <th className="p-4">Customer</th>
-                          <th className="p-4">Service</th>
-                          <th className="p-4">Scheduled</th>
-                          <th className="p-4">Price</th>
-                          <th className="p-4">Status</th>
-                          <th className="p-4 text-right">Update Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {data.jobs.map((job) => (
-                          <tr key={job.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-4 font-bold text-slate-900">{job.customer}</td>
-                            <td className="p-4 text-slate-700">{job.service}</td>
-                            <td className="p-4 text-xs text-slate-600">{job.date} ({job.time})</td>
-                            <td className="p-4 font-bold text-emerald-600">${job.price}</td>
-                            <td className="p-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                job.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
-                                job.status === 'IN_PROGRESS' ? 'bg-ember-50 text-ember-700' : 'bg-slate-100 text-slate-600'
-                              }`}>
-                                {job.status === 'IN_PROGRESS' ? 'In Progress' : job.status}
-                              </span>
-                            </td>
-                            <td className="p-4 text-right space-x-2">
-                              {job.status !== 'COMPLETED' ? (
-                                <button
-                                  onClick={() => handleJobStatusChange(job.id, 'COMPLETED')}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
-                                >
-                                  Complete & Review →
-                                </button>
-                              ) : (
-                                <span className="text-xs text-emerald-600 font-bold">✓ Done</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ------------------------------------------------------------- */}
-              {/* TAB 4: CUSTOMERS (/#/portal/customers) */}
-              {/* ------------------------------------------------------------- */}
-              {currentPortalTab === 'customers' && (
-                <div className="space-y-6 animate-fade-in-up">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
-                      <p className="text-slate-500 text-sm">Directory of clients and contact information.</p>
-                    </div>
-                  </div>
-
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {data.customers.map((cust) => (
-                      <div key={cust.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-bold text-slate-900">{cust.name}</h3>
-                            <p className="text-xs text-slate-400">{cust.address}</p>
-                          </div>
-                          <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-semibold">
-                            {cust.jobsCount} Jobs
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-600 space-y-1">
-                          <p>📞 {cust.phone}</p>
-                          <p>✉️ {cust.email}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ------------------------------------------------------------- */}
-              {/* TAB 5: REVIEWS (/#/portal/reviews) */}
-              {/* ------------------------------------------------------------- */}
-              {currentPortalTab === 'reviews' && (
-                <div className="space-y-6 animate-fade-in-up">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h1 className="text-2xl font-bold text-slate-900">Reviews</h1>
-                      <p className="text-slate-500 text-sm">Customer feedback collected automatically upon job completion.</p>
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-5">
-                    {data.reviews.map((rev) => (
-                      <div key={rev.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
-                        <div className="flex justify-between items-center">
-                          <p className="font-bold text-slate-900">{rev.author}</p>
-                          <div className="text-amber-400">
-                            {[...Array(rev.rating)].map((_, i) => (
-                              <span key={i}>★</span>
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium">{rev.service}</p>
-                        <p className="text-sm text-slate-600 italic">"{rev.comment}"</p>
-                        <div className="pt-2 border-t border-slate-100 text-xs text-slate-400 flex justify-between">
-                          <span>{rev.date}</span>
-                          <span className="text-emerald-600 font-medium">Verified</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ------------------------------------------------------------- */}
-              {/* TAB 6: AUTOMATIONS (/#/portal/automations) */}
-              {/* ------------------------------------------------------------- */}
-              {currentPortalTab === 'automations' && (
-                <div className="space-y-6 animate-fade-in-up">
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Automations</h1>
-                    <p className="text-slate-500 text-sm">Automated triggers that run silently after customer actions.</p>
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-5">
-                    {data.automations.map((auto) => (
-                      <div key={auto.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 hover:shadow-md transition">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-ember-600 uppercase">{auto.channel} Trigger</span>
-                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ACTIVE</span>
-                        </div>
-                        <h3 className="font-bold text-sm text-slate-900">{auto.name}</h3>
-                        <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 font-mono">
-                          {auto.template}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-                    <h3 className="font-bold text-sm text-slate-900">Dispatched Notification Log</h3>
-                    <div className="divide-y divide-slate-100">
-                      {data.messages.map((msg) => (
-                        <div key={msg.id} className="py-3 flex justify-between items-start text-xs">
-                          <div>
-                            <p className="font-bold text-slate-800">To: {msg.to}</p>
-                            <p className="text-slate-600 mt-0.5">{msg.text}</p>
-                          </div>
-                          <span className="bg-slate-100 px-2 py-1 rounded text-slate-500 font-semibold">{msg.time} • {msg.status}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ------------------------------------------------------------- */}
-              {/* TAB 7: SETTINGS (/#/portal/settings) */}
-              {/* ------------------------------------------------------------- */}
-              {currentPortalTab === 'settings' && (
-                <div className="space-y-6 max-w-2xl animate-fade-in-up">
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-                    <p className="text-slate-500 text-sm">Business preferences and account info.</p>
-                  </div>
-
-                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company Name</label>
-                      <input defaultValue="Northside Plumbing" className="w-full px-3 py-2 border rounded-lg text-sm" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Owner Email</label>
-                      <input defaultValue="dexter125555@gmail.com" disabled className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-500 cursor-not-allowed" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Phone Line</label>
-                      <input defaultValue="(416) 555-0100" className="w-full px-3 py-2 border rounded-lg text-sm" />
-                    </div>
-                    <button onClick={() => showToast('Settings saved!')} className="bg-slate-900 text-white font-semibold text-sm px-4 py-2 rounded-lg hover:bg-slate-800 transition">
-                      Save Settings
-                    </button>
-                  </div>
-                </div>
-              )}
-            </main>
-          </div>
+          {/* Render Active Page Content */}
+          {mainContent}
 
           {/* ================================================================= */}
-          {/* MODALS */}
+          {/* GLOBAL MODALS (ACCESSIBLE ACROSS ALL PAGES) */}
           {/* ================================================================= */}
+
+          {/* Supabase Config Modal */}
+          {modal.type === 'supabase_config' && (
+            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-fade-in-up">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                      ⚡
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Supabase Connection</h3>
+                      <p className="text-xs text-slate-500">Paste your Anon Public Key from Supabase API settings</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setModal({ type: null })} className="text-slate-400 hover:text-slate-600">✕</button>
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = new FormData(e.target);
+                    handleSaveSupabaseConfig(form.get('url'), form.get('key'));
+                  }}
+                  className="space-y-4 text-sm"
+                >
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Project URL</label>
+                    <input
+                      name="url"
+                      required
+                      defaultValue={supabaseConfig.url || DEFAULT_PROJECT_URL}
+                      placeholder="https://qrrdmhwpiiwtixofyvqf.supabase.co"
+                      className="w-full px-3 py-2 border rounded-lg font-mono text-xs focus:ring-2 focus:ring-ember-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Anon Public Key *</label>
+                    <input
+                      name="key"
+                      required
+                      type="password"
+                      defaultValue={supabaseConfig.key}
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      className="w-full px-3 py-2 border rounded-lg font-mono text-xs focus:ring-2 focus:ring-ember-500 focus:outline-none"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Find this in your Supabase project under: <span className="font-semibold text-slate-700">Project Settings ➔ API ➔ Project API keys (anon public)</span>.
+                  </p>
+                  <button type="submit" className="w-full bg-ember-500 hover:bg-ember-600 text-white font-semibold py-2.5 rounded-lg transition shadow">
+                    Save and Connect
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
 
           {/* Add Job Modal */}
           {modal.type === 'add_job' && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-fade-in-up">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold text-slate-900">Create New Job</h3>
@@ -1922,7 +1799,7 @@
 
           {/* Add Lead Modal */}
           {modal.type === 'add_lead' && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-fade-in-up">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold text-slate-900">Add Lead</h3>
@@ -1949,10 +1826,6 @@
                     <label className="block text-xs font-semibold mb-1">Phone *</label>
                     <input name="phone" required placeholder="(416) 555-0100" className="w-full px-3 py-2 border rounded-lg" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Service Requested</label>
-                    <input name="service" defaultValue="General Service" className="w-full px-3 py-2 border rounded-lg" />
-                  </div>
                   <button type="submit" className="w-full bg-ember-500 hover:bg-ember-600 text-white font-semibold py-2.5 rounded-lg transition shadow">
                     Save Lead
                   </button>
@@ -1963,7 +1836,7 @@
 
           {/* View Portfolio Project Modal */}
           {modal.type === 'view_project' && modal.data && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-fade-in-up">
                 <div className="flex justify-between items-center">
                   <div>
@@ -1974,16 +1847,6 @@
                 </div>
                 <img src={modal.data.img} alt={modal.data.name} className="w-full h-48 object-cover rounded-xl" />
                 <p className="text-sm text-slate-600">{modal.data.desc}</p>
-                <div className="bg-slate-50 p-4 rounded-xl space-y-2 text-xs">
-                  <p className="font-bold text-slate-900">Included System Modules:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {modal.data.tags.map((t) => (
-                      <span key={t} className="bg-white border border-slate-200 px-2.5 py-1 rounded-md text-slate-700 font-medium">
-                        ✓ {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
                 <button
                   onClick={() => {
                     setModal({ type: null });
