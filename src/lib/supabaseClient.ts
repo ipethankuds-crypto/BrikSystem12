@@ -1,17 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Environment variables or browser window overrides
-const SUPABASE_URL = 
-  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) ||
+// Support Vite import.meta.env, process.env, or browser window globals
+const SUPABASE_URL: string =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) ||
   (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) ||
   'https://qrrdmhwpiiwtixofyvqf.supabase.co';
 
-const SUPABASE_ANON_KEY = 
-  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) ||
+const SUPABASE_ANON_KEY: string =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) ||
   (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) ||
-  'your-anon-key';
+  '';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY || 'placeholder-anon-key', {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
