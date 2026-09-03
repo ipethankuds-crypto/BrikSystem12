@@ -302,6 +302,587 @@
     }
 
     // =========================================================================
+    // Homepage interactive dashboard demo (local-only — does not touch real data)
+    // =========================================================================
+    const DEMO_OWNER_NAME = 'Maya Chen';
+    const DEMO_JOB_STATUSES = ['Pending', 'In Progress', 'Completed'];
+
+    const demoStatusTone = (status) => {
+      if (status === 'Completed') return 'bg-emerald-50 text-emerald-700';
+      if (status === 'In Progress') return 'bg-ember-50 text-ember-700';
+      if (status === 'Won' || status === 'Booked') return 'bg-emerald-50 text-emerald-700';
+      if (status === 'Contacted') return 'bg-amber-50 text-amber-700';
+      return 'bg-slate-100 text-slate-600';
+    };
+
+    const INITIAL_DEMO_DASHBOARD = {
+      jobs: [
+        { id: 'dj1', customer: 'John Smith', service: 'Drain Cleaning', status: 'Completed' },
+        { id: 'dj2', customer: 'Sarah Wilson', service: 'Water Heater Repair', status: 'In Progress' },
+        { id: 'dj3', customer: 'Mike Brown', service: 'Pipe Repair', status: 'Pending' },
+      ],
+      leads: [
+        { id: 'dl1', name: 'Priya Patel', email: 'priya@example.com', phone: '(555) 204-1188', service: 'Boiler install', status: 'New' },
+        { id: 'dl2', name: 'Chris Nguyen', email: 'chris@example.com', phone: '(555) 441-9020', service: 'Leak inspection', status: 'Contacted' },
+        { id: 'dl3', name: 'Elena Rossi', email: 'elena@example.com', phone: '(555) 773-0142', service: 'Bathroom remodel', status: 'New' },
+      ],
+      customers: [
+        { id: 'dc1', name: 'John Smith', jobs: 4, phone: '(555) 201-0091' },
+        { id: 'dc2', name: 'Sarah Wilson', jobs: 2, phone: '(555) 882-4410' },
+        { id: 'dc3', name: 'Mike Brown', jobs: 1, phone: '(555) 330-7755' },
+      ],
+      reviews: [
+        { id: 'dr1', name: 'John Smith', stars: 5, text: 'Showed up fast and fixed the drain the same day.' },
+        { id: 'dr2', name: 'Lena Ortiz', stars: 5, text: 'Clear pricing and a follow-up text after the job. Easy.' },
+      ],
+      automations: [
+        { id: 'da1', name: 'Missed Call → SMS', active: true },
+        { id: 'da2', name: 'Job Completed → Review Request', active: true },
+        { id: 'da3', name: 'Delayed Follow-Up', active: false },
+      ],
+      settings: { company: 'Northside Plumbing', phone: '(555) 014-2208', city: 'Austin, TX' },
+    };
+
+    function HomeDemoDashboard({ variant = 'hero' }) {
+      const [tab, setTab] = useState('overview');
+      const [jobs, setJobs] = useState(INITIAL_DEMO_DASHBOARD.jobs);
+      const [leads, setLeads] = useState(INITIAL_DEMO_DASHBOARD.leads);
+      const [customers, setCustomers] = useState(INITIAL_DEMO_DASHBOARD.customers);
+      const [reviews, setReviews] = useState(INITIAL_DEMO_DASHBOARD.reviews);
+      const [automations, setAutomations] = useState(INITIAL_DEMO_DASHBOARD.automations);
+      const [settings, setSettings] = useState(INITIAL_DEMO_DASHBOARD.settings);
+      const [notice, setNotice] = useState('Click around — this is a live demo, not the real portal.');
+      const [showNewJob, setShowNewJob] = useState(false);
+      const [newJob, setNewJob] = useState({ customer: '', service: '' });
+
+      const nav = [
+        { id: 'overview', label: 'Overview', icon: 'layout-dashboard' },
+        { id: 'jobs', label: 'Jobs', icon: 'hammer' },
+        { id: 'leads', label: 'Leads', icon: 'user-plus' },
+        { id: 'customers', label: 'Customers', icon: 'users' },
+        { id: 'reviews', label: 'Reviews', icon: 'message-square-quote' },
+        { id: 'automations', label: 'Automations', icon: 'repeat' },
+        { id: 'settings', label: 'Settings', icon: 'settings' },
+      ];
+
+      const ping = (msg) => setNotice(msg);
+      const cycleJobStatus = (id) => {
+        setJobs((prev) => prev.map((job) => {
+          if (job.id !== id) return job;
+          const next = DEMO_JOB_STATUSES[(DEMO_JOB_STATUSES.indexOf(job.status) + 1) % DEMO_JOB_STATUSES.length];
+          ping(`${job.customer}: ${job.status} → ${next}`);
+          return { ...job, status: next };
+        }));
+      };
+
+      const addJob = (e) => {
+        e.preventDefault();
+        if (!newJob.customer.trim() || !newJob.service.trim()) return;
+        setJobs((prev) => [{ id: `dj_${Date.now()}`, customer: newJob.customer.trim(), service: newJob.service.trim(), status: 'Pending' }, ...prev]);
+        ping(`Job added for ${newJob.customer.trim()}`);
+        setNewJob({ customer: '', service: '' });
+        setShowNewJob(false);
+        setTab('jobs');
+      };
+
+      const convertLead = (lead) => {
+        setLeads((prev) => prev.map((item) => item.id === lead.id ? { ...item, status: 'Won' } : item));
+        setJobs((prev) => [{ id: `dj_${Date.now()}`, customer: lead.name, service: lead.service, status: 'Pending' }, ...prev]);
+        setCustomers((prev) => prev.some((c) => c.name === lead.name) ? prev : [{ id: `dc_${Date.now()}`, name: lead.name, jobs: 1, phone: lead.phone }, ...prev]);
+        ping(`${lead.name} converted into a job`);
+        setTab('jobs');
+      };
+
+      const requestReview = (job) => {
+        if (job.status !== 'Completed') {
+          ping('Mark the job completed first, then request a review.');
+          return;
+        }
+        setReviews((prev) => [{ id: `dr_${Date.now()}`, name: job.customer, stars: 5, text: 'Review request sent. Waiting on the customer.' }, ...prev]);
+        ping(`Review request sent to ${job.customer}`);
+        setTab('reviews');
+      };
+
+      const stats = [
+        { label: 'New Leads', value: leads.filter((l) => l.status === 'New').length, delta: `+${leads.length}`, icon: 'user-plus', tone: 'text-blue-600 bg-blue-50', tab: 'leads' },
+        { label: 'Active Jobs', value: jobs.filter((j) => j.status !== 'Completed').length, delta: `+${jobs.length}`, icon: 'hammer', tone: 'text-ember-600 bg-ember-50', tab: 'jobs' },
+        { label: 'Completed', value: jobs.filter((j) => j.status === 'Completed').length, delta: '+2', icon: 'circle-check', tone: 'text-emerald-600 bg-emerald-50', tab: 'jobs' },
+        { label: 'Review Requests', value: reviews.length, delta: `+${reviews.length}`, icon: 'message-square-quote', tone: 'text-violet-600 bg-slate-100', tab: 'reviews' },
+      ];
+
+      const isHero = variant === 'hero';
+
+      const dashboardBody = (
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <aside className={`hidden shrink-0 flex-col bg-slate-900 sm:flex ${isHero ? 'w-14 p-1.5' : 'w-[188px] p-3'}`}>
+            {!isHero && <div className="px-2 pb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Brik Systems</div>}
+            <nav className="space-y-0.5">
+              {nav.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  title={item.label}
+                  onClick={() => { setTab(item.id); ping(`Opened ${item.label}`); }}
+                  className={`flex w-full items-center rounded-lg text-left transition ${isHero ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-2 text-sm'} ${tab === item.id ? 'bg-ember-500 font-medium text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                >
+                  <Icon name={item.icon} className="h-4 w-4" />
+                  {!isHero && item.label}
+                </button>
+              ))}
+            </nav>
+          </aside>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className={`flex items-center justify-between border-b border-slate-100 ${isHero ? 'px-3 py-2' : 'px-4 py-3 sm:px-5'}`}>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-slate-400">Good morning,</p>
+                <p className={`truncate font-bold text-slate-900 ${isHero ? 'text-sm' : 'text-base sm:text-lg'}`}>{DEMO_OWNER_NAME}</p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                <Icon name="trending-up" className="h-3 w-3" />
+                Live demo
+              </span>
+            </div>
+            <div className={`flex gap-1 overflow-x-auto border-b border-slate-100 px-2 py-1.5 ${isHero ? 'sm:hidden' : 'md:hidden'}`}>
+              {nav.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setTab(item.id)}
+                  className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-medium ${tab === item.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            {!isHero && notice && (
+              <p className="border-b border-ember-100 bg-ember-50 px-4 py-2 text-[11px] font-medium text-ember-800">{notice}</p>
+            )}
+            <div className={`min-h-0 flex-1 overflow-y-auto ${isHero ? 'p-3' : 'p-4 sm:p-5'}`}>
+              {tab === 'overview' && (
+                <div>
+                  <div className={`grid grid-cols-2 ${isHero ? 'gap-2' : 'gap-3'}`}>
+                    {stats.map((card) => (
+                      <button
+                        key={card.label}
+                        type="button"
+                        onClick={() => { setTab(card.tab); ping(`Opened ${card.label}`); }}
+                        className={`rounded-xl border border-slate-100 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow ${isHero ? 'p-2.5' : 'p-3.5'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center justify-center rounded-lg ${card.tone} ${isHero ? 'h-7 w-7' : 'h-8 w-8'}`}>
+                            <Icon name={card.icon} className={isHero ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+                          </span>
+                          <span className="text-[10px] font-semibold text-emerald-600">{card.delta}</span>
+                        </div>
+                        <p className={`mt-2 font-bold text-slate-900 ${isHero ? 'text-xl leading-none' : 'text-2xl'}`}>{card.value}</p>
+                        <p className="mt-1 text-[11px] text-slate-500">{card.label}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <div className={`rounded-xl border border-slate-100 bg-slate-50/60 ${isHero ? 'mt-2.5 p-2.5' : 'mt-4 p-4'}`}>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Workflow</p>
+                    <div className="flex items-center justify-between gap-0.5">
+                      {[
+                        { label: isHero ? 'Lead' : 'New Lead', icon: 'user-plus', tab: 'leads' },
+                        { label: isHero ? 'Job' : 'In Progress', icon: 'hammer', tab: 'jobs' },
+                        { label: isHero ? 'Done' : 'Completed', icon: 'circle-check', tab: 'jobs' },
+                        { label: isHero ? 'Ask' : 'Review Requested', icon: 'message-square-quote', tab: 'reviews' },
+                        { label: isHero ? 'Review' : 'Review Received', icon: 'star', tab: 'reviews' },
+                      ].map((step, idx, arr) => (
+                        <div key={step.label} className="flex min-w-0 flex-1 items-center">
+                          <button type="button" onClick={() => setTab(step.tab)} className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
+                            <span className={`inline-flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-ember-300 hover:text-ember-600 ${isHero ? 'h-7 w-7' : 'h-9 w-9'}`}>
+                              <Icon name={step.icon} className={isHero ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+                            </span>
+                            <span className="w-full truncate text-[9px] font-medium leading-tight text-slate-500">{step.label}</span>
+                          </button>
+                          {idx < arr.length - 1 && <Icon name="arrow-right" className="h-3 w-3 shrink-0 text-slate-300" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'jobs' && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Jobs</h3>
+                      <p className="text-sm text-slate-500">Click a status to move the job forward.</p>
+                    </div>
+                    <button type="button" onClick={() => setShowNewJob((v) => !v)} className="rounded-lg bg-ember-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-ember-600">
+                      + New Job
+                    </button>
+                  </div>
+                  {showNewJob && (
+                    <form onSubmit={addJob} className="mt-3 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_1fr_auto]">
+                      <input value={newJob.customer} onChange={(e) => setNewJob({ ...newJob, customer: e.target.value })} placeholder="Customer name" className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+                      <input value={newJob.service} onChange={(e) => setNewJob({ ...newJob, service: e.target.value })} placeholder="Service" className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+                      <button type="submit" className="h-9 rounded-md bg-slate-900 px-4 text-sm font-medium text-white">Add</button>
+                    </form>
+                  )}
+                  <div className="mt-4 overflow-hidden rounded-xl border border-slate-100">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Customer</th>
+                          <th className="px-4 py-3 font-medium">Service</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {jobs.map((job) => (
+                          <tr key={job.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 font-medium text-slate-900">{job.customer}</td>
+                            <td className="px-4 py-3 text-slate-600">{job.service}</td>
+                            <td className="px-4 py-3">
+                              <button type="button" onClick={() => cycleJobStatus(job.id)} className={`rounded-full px-2.5 py-1 text-xs font-medium ${demoStatusTone(job.status)}`}>
+                                {job.status}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button type="button" onClick={() => requestReview(job)} className="text-xs font-semibold text-ember-600 hover:underline">Review</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'leads' && (
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-slate-900">Leads</h3>
+                  <p className="text-sm text-slate-500">Convert a lead to create a job.</p>
+                  {leads.map((lead) => (
+                    <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white p-3.5">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{lead.name}</p>
+                        <p className="text-xs text-slate-500">{lead.service} · {lead.email}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${demoStatusTone(lead.status)}`}>{lead.status}</span>
+                        {lead.status !== 'Won' && (
+                          <button type="button" onClick={() => convertLead(lead)} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white">Convert</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {tab === 'customers' && (
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-slate-900">Customers</h3>
+                  {customers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => { setTab('jobs'); ping(`Showing jobs related to ${customer.name}`); }}
+                      className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-white p-3.5 text-left hover:border-slate-300"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{customer.name}</p>
+                        <p className="text-xs text-slate-500">{customer.phone}</p>
+                      </div>
+                      <span className="text-xs font-medium text-slate-500">{customer.jobs} jobs</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {tab === 'reviews' && (
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-slate-900">Reviews</h3>
+                  {reviews.map((review) => (
+                    <div key={review.id} className="rounded-xl border border-slate-100 bg-white p-3.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-900">{review.name}</p>
+                        <span className="text-xs font-semibold text-ember-600">{'★'.repeat(review.stars)}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">{review.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {tab === 'automations' && (
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-slate-900">Automations</h3>
+                  <p className="text-sm text-slate-500">Toggle these on or off — demo only.</p>
+                  {automations.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setAutomations((prev) => prev.map((row) => row.id === item.id ? { ...row, active: !row.active } : row));
+                        ping(`${item.name} ${item.active ? 'turned off' : 'turned on'}`);
+                      }}
+                      className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-white p-3.5 text-left"
+                    >
+                      <span className="text-sm font-medium text-slate-900">{item.name}</span>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {item.active ? 'ON' : 'OFF'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {tab === 'settings' && (
+                <form
+                  onSubmit={(e) => { e.preventDefault(); ping('Demo settings saved locally.'); }}
+                  className="space-y-3"
+                >
+                  <h3 className="text-lg font-bold text-slate-900">Settings</h3>
+                  <label className="block text-xs font-medium text-slate-500">Company
+                    <input value={settings.company} onChange={(e) => setSettings({ ...settings, company: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900" />
+                  </label>
+                  <label className="block text-xs font-medium text-slate-500">Phone
+                    <input value={settings.phone} onChange={(e) => setSettings({ ...settings, phone: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900" />
+                  </label>
+                  <label className="block text-xs font-medium text-slate-500">City
+                    <input value={settings.city} onChange={(e) => setSettings({ ...settings, city: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900" />
+                  </label>
+                  <button type="submit" className="h-10 rounded-md bg-ember-500 px-4 text-sm font-semibold text-white">Save demo settings</button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
+      if (variant === 'wide') {
+        return (
+          <div className="flex h-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+            {dashboardBody}
+          </div>
+        );
+      }
+
+      return (
+        <div className="relative mx-auto w-full max-w-[520px] lg:ml-auto lg:mr-0 lg:max-w-none">
+          <div className="pointer-events-none absolute -inset-3 -z-10 rounded-[1.75rem] bg-gradient-to-tr from-ember-100/60 via-slate-100/40 to-transparent blur-2xl"></div>
+          <div className="flex h-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5 sm:h-[384px] lg:h-[400px]">
+            <div className="flex shrink-0 items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-3 py-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+              <span className="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+              <span className="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+              <span className="ml-2 truncate text-[11px] font-medium text-slate-400">app.briksystems.io</span>
+              <span className="ml-auto hidden text-[10px] font-medium text-slate-400 sm:inline">Try clicking around</span>
+            </div>
+            {dashboardBody}
+          </div>
+        </div>
+      );
+    }
+
+    function ContactInquiryForm({ onSubmitInquiry }) {
+      const [submitting, setSubmitting] = useState(false);
+      const [sent, setSent] = useState(false);
+      const inputClass = 'flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500';
+
+      if (sent) {
+        return (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
+            <Icon name="circle-check" className="mx-auto h-10 w-10 text-emerald-600" />
+            <h3 className="mt-4 text-xl font-bold text-slate-900">Inquiry sent</h3>
+            <p className="mt-2 text-sm text-slate-600">We received your details and will follow up by email shortly.</p>
+            <button type="button" onClick={() => setSent(false)} className="mt-6 text-sm font-semibold text-ember-600 hover:underline">Send another</button>
+          </div>
+        );
+      }
+
+      return (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const f = new FormData(e.target);
+            setSubmitting(true);
+            const ok = await onSubmitInquiry({
+              first_name: f.get('first_name'),
+              last_name: f.get('last_name'),
+              email: f.get('email'),
+              phone: f.get('phone'),
+              business: f.get('business'),
+              city: f.get('city'),
+              website: f.get('website'),
+              service: f.get('type') || 'Custom System',
+              source: f.get('hear') || 'Website Contact Form',
+              notes: [
+                f.get('message'),
+                f.get('business') ? `Business: ${f.get('business')}` : '',
+                f.get('city') ? `City: ${f.get('city')}` : '',
+                f.get('website') ? `Website: ${f.get('website')}` : '',
+                f.get('hear') ? `Heard about us: ${f.get('hear')}` : '',
+              ].filter(Boolean).join('\n'),
+            });
+            setSubmitting(false);
+            if (ok) {
+              e.target.reset();
+              setSent(true);
+            }
+          }}
+          className="space-y-5"
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="first_name">First name *</label>
+              <input required id="first_name" name="first_name" placeholder="Maya" className={inputClass} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="last_name">Last name *</label>
+              <input required id="last_name" name="last_name" placeholder="Chen" className={inputClass} />
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="email">Email *</label>
+              <input required type="email" id="email" name="email" placeholder="you@business.com" className={inputClass} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="phone">Phone number *</label>
+              <input required type="tel" id="phone" name="phone" placeholder="(555) 000-1234" className={inputClass} />
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="business">Business name *</label>
+              <input required id="business" name="business" placeholder="Northside Plumbing" className={inputClass} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="city">City</label>
+              <input id="city" name="city" placeholder="Austin, TX" className={inputClass} />
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="type">What do you need? *</label>
+              <select required id="type" name="type" defaultValue="" className={inputClass}>
+                <option value="" disabled>Select one</option>
+                <option>Website</option>
+                <option>Lead System</option>
+                <option>Review System</option>
+                <option>Follow-Up Automation</option>
+                <option>Full Business System</option>
+                <option>Not sure yet</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none" htmlFor="website">Current website</label>
+              <input id="website" name="website" placeholder="https://" className={inputClass} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none" htmlFor="hear">How did you hear about us?</label>
+            <select id="hear" name="hear" defaultValue="Website Contact Form" className={inputClass}>
+              <option>Website Contact Form</option>
+              <option>Google</option>
+              <option>Referral</option>
+              <option>Social media</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none" htmlFor="message">Tell us about the business *</label>
+            <textarea required id="message" name="message" rows="4" placeholder="What kind of work do you do, and what should the system handle?" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500"></textarea>
+          </div>
+          <button type="submit" disabled={submitting} className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md bg-ember-500 px-8 h-11 text-sm font-semibold text-white shadow transition hover:bg-ember-600 disabled:opacity-60">
+            {submitting ? 'Sending…' : 'Book a Call'}
+          </button>
+        </form>
+      );
+    }
+
+    function WorkCardArt({ kind, className = '' }) {
+      const arts = {
+        plumbing: (
+          <svg viewBox="0 0 640 400" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="plumbSky" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#1e3a5f" />
+              </linearGradient>
+            </defs>
+            <rect width="640" height="400" fill="url(#plumbSky)" />
+            <circle cx="520" cy="-20" r="160" fill="#f97316" opacity="0.18" />
+            <rect x="70" y="210" width="500" height="28" rx="14" fill="#fdba74" />
+            <rect x="90" y="120" width="28" height="180" rx="14" fill="#fb923c" />
+            <rect x="250" y="80" width="28" height="220" rx="14" fill="#f97316" />
+            <rect x="410" y="150" width="28" height="150" rx="14" fill="#fb923c" />
+            <circle cx="104" cy="120" r="22" fill="#fff7ed" />
+            <circle cx="264" cy="80" r="22" fill="#fff7ed" />
+            <circle cx="424" cy="150" r="22" fill="#fff7ed" />
+            <rect x="88" y="268" width="160" height="70" rx="12" fill="#ffffff" opacity="0.12" />
+            <text x="108" y="310" fill="#fff" fontFamily="Inter,sans-serif" fontSize="18" fontWeight="700">Quote in 60s</text>
+          </svg>
+        ),
+        hvac: (
+          <svg viewBox="0 0 640 400" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <rect width="640" height="400" fill="#1c1917" />
+            <rect x="90" y="110" width="280" height="200" rx="24" fill="#292524" stroke="#f97316" strokeWidth="4" />
+            <circle cx="230" cy="210" r="62" fill="#44403c" />
+            <circle cx="230" cy="210" r="28" fill="#f97316" />
+            <path d="M420 90c60 40 60 180 0 220" fill="none" stroke="#fdba74" strokeWidth="10" strokeLinecap="round" opacity="0.7" />
+            <path d="M470 70c80 50 80 210 0 260" fill="none" stroke="#fb923c" strokeWidth="8" strokeLinecap="round" opacity="0.45" />
+            <text x="120" y="330" fill="#fff" fontFamily="Inter,sans-serif" fontSize="18" fontWeight="700">Season-ready installs</text>
+          </svg>
+        ),
+        landscape: (
+          <svg viewBox="0 0 640 400" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <rect width="640" height="400" fill="#ecfdf5" />
+            <circle cx="520" cy="70" r="46" fill="#fbbf24" />
+            <path d="M0 280 C120 200 220 320 340 240 C460 160 540 260 640 210 L640 400 L0 400 Z" fill="#059669" />
+            <path d="M0 320 C140 270 250 360 390 300 C510 250 580 330 640 300 L640 400 L0 400 Z" fill="#10b981" />
+            <rect x="86" y="210" width="18" height="90" fill="#92400e" />
+            <circle cx="95" cy="200" r="42" fill="#166534" />
+            <rect x="190" y="230" width="16" height="80" fill="#92400e" />
+            <circle cx="198" cy="220" r="36" fill="#15803d" />
+            <rect x="430" y="200" width="20" height="110" fill="#92400e" />
+            <circle cx="440" cy="188" r="50" fill="#14532d" />
+            <text x="40" y="60" fill="#064e3b" fontFamily="Inter,sans-serif" fontSize="18" fontWeight="700">Yards that sell the next job</text>
+          </svg>
+        ),
+        cleaning: (
+          <svg viewBox="0 0 640 400" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <rect width="640" height="400" fill="#ecfeff" />
+            <rect x="80" y="80" width="480" height="240" rx="28" fill="#ffffff" />
+            <rect x="110" y="120" width="200" height="16" rx="8" fill="#a5f3fc" />
+            <rect x="110" y="156" width="140" height="16" rx="8" fill="#cffafe" />
+            <circle cx="430" cy="200" r="70" fill="#22d3ee" opacity="0.25" />
+            <path d="M400 230 l30 30 70-80" fill="none" stroke="#0891b2" strokeWidth="12" strokeLinecap="round" />
+            <text x="110" y="250" fill="#0e7490" fontFamily="Inter,sans-serif" fontSize="18" fontWeight="700">Spotless, on schedule</text>
+          </svg>
+        ),
+        contracting: (
+          <svg viewBox="0 0 640 400" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <rect width="640" height="400" fill="#f8fafc" />
+            <polygon points="320,70 560,200 80,200" fill="#0f172a" />
+            <rect x="140" y="200" width="360" height="150" fill="#1e293b" />
+            <rect x="280" y="240" width="80" height="110" fill="#f97316" />
+            <rect x="180" y="230" width="70" height="50" fill="#e2e8f0" />
+            <rect x="390" y="230" width="70" height="50" fill="#e2e8f0" />
+            <text x="40" y="50" fill="#0f172a" fontFamily="Inter,sans-serif" fontSize="18" fontWeight="700">From bid to final review</text>
+          </svg>
+        ),
+        auto: (
+          <svg viewBox="0 0 640 400" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <rect width="640" height="400" fill="#111827" />
+            <ellipse cx="320" cy="310" rx="210" ry="18" fill="#1f2937" />
+            <path d="M120 250 l70-70 h220 l90 70 h40 v40 h-50 a40 40 0 0 1-80 0 h-160 a40 40 0 0 1-80 0 h-50 z" fill="#f97316" />
+            <circle cx="210" cy="290" r="28" fill="#0f172a" stroke="#e2e8f0" strokeWidth="6" />
+            <circle cx="450" cy="290" r="28" fill="#0f172a" stroke="#e2e8f0" strokeWidth="6" />
+            <text x="40" y="70" fill="#fff" fontFamily="Inter,sans-serif" fontSize="18" fontWeight="700">Booked. Detailed. Reviewed.</text>
+          </svg>
+        ),
+      };
+      return <div className={`h-full w-full ${className}`}>{arts[kind] || arts.plumbing}</div>;
+    }
+
+    // =========================================================================
     // Initial Platform Data Store (Clean Schema — No Fake CRM Data)
     // =========================================================================
     const INITIAL_PORTAL_DATA = {
@@ -598,11 +1179,6 @@
       // REAL SUPABASE LEADS CRUD HANDLERS
       // -----------------------------------------------------------------------
       const handleCreateLead = async (leadInput) => {
-        if (!supabaseClient) {
-          showToast('Database not connected.');
-          return;
-        }
-
         const orgId = profile?.organization_id || organization?.id || '00000000-0000-0000-0000-000000000001';
         const firstName = (leadInput.first_name || '').trim();
         const lastName = (leadInput.last_name || '').trim();
@@ -621,6 +1197,23 @@
           notes: (leadInput.notes || '').trim() || null,
         };
 
+        const addLocalFallback = () => {
+          const fallbackRecord = {
+            id: `lead_${Date.now()}`,
+            ...newLeadPayload,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          setLeads((prev) => [fallbackRecord, ...prev]);
+          if (!leadInput.silent) showToast(`Lead created (${fullName})`);
+        };
+
+        if (!supabaseClient) {
+          addLocalFallback();
+          setModal({ type: null });
+          return true;
+        }
+
         try {
           const { data: newRecord, error } = await supabaseClient
             .from('leads')
@@ -638,16 +1231,63 @@
               updated_at: new Date().toISOString(),
             };
             setLeads((prev) => [fallbackRecord, ...prev]);
-            showToast(`Lead created (${fullName})`);
+            if (!leadInput.silent) showToast(`Lead created (${fullName})`);
           } else if (newRecord) {
             setLeads((prev) => [newRecord, ...prev]);
-            showToast(`Lead "${fullName}" created successfully in Supabase!`);
+            if (!leadInput.silent) showToast(`Lead "${fullName}" created successfully in Supabase!`);
           }
           setModal({ type: null });
+          return true;
         } catch (err) {
           console.error('Exception creating lead:', err);
           showToast(`Error: ${err.message}`);
+          return false;
         }
+      };
+
+      const handleContactInquiry = async (leadInput) => {
+        const firstName = (leadInput.first_name || '').trim();
+        const lastName = (leadInput.last_name || '').trim();
+        const fullName = `${firstName} ${lastName}`.trim();
+        let emailed = false;
+
+        try {
+          const emailRes = await fetch('https://formsubmit.co/ajax/ipethankuds@gmail.com', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              _subject: `New Brik Systems inquiry from ${fullName || 'website'}`,
+              _template: 'table',
+              _captcha: 'false',
+              _replyto: (leadInput.email || '').trim(),
+              first_name: firstName,
+              last_name: lastName,
+              name: fullName,
+              email: (leadInput.email || '').trim(),
+              phone: (leadInput.phone || '').trim(),
+              business: (leadInput.business || '').trim(),
+              service_needed: (leadInput.service || '').trim(),
+              notes: (leadInput.notes || '').trim(),
+            }),
+          });
+          emailed = emailRes.ok;
+        } catch (err) {
+          console.warn('Contact email send failed:', err);
+        }
+
+        await handleCreateLead({
+          ...leadInput,
+          name: fullName,
+          source: leadInput.source || 'Website Contact Form',
+          silent: true,
+        });
+
+        if (emailed) {
+          showToast('Inquiry sent. We will follow up by email.');
+        } else {
+          showToast('Inquiry saved. Confirm the first FormSubmit email to ipethankuds@gmail.com so future messages arrive.');
+        }
+        return true;
       };
 
       const handleUpdateLead = async (leadId, updates) => {
@@ -851,7 +1491,6 @@
       // VIEW: HOME
       // -----------------------------------------------------------------------
       if (route === '#/' || route === '') {
-        const displayName = profile?.full_name || (user?.email ? user.email.split('@')[0] : 'Alex');
         const websiteFeatures = ['Mobile responsive', 'Lead forms', 'Quote requests', 'Appointment requests', 'Google Maps', 'SEO foundations'];
         const buildCards = [
           { title: 'Websites', desc: 'Modern websites designed to turn visitors into leads.', icon: 'globe', features: websiteFeatures },
@@ -868,29 +1507,14 @@
           { n: 5, title: 'Request a Review', desc: 'The customer receives a request for honest feedback.', icon: 'message-square-quote', align: 'right' },
           { n: 6, title: 'Follow Up', desc: 'If enabled, the system can send a follow-up reminder.', icon: 'bell-ring', align: 'left' },
         ];
-        const platformNav = [
-          { label: 'Overview', icon: 'layout-dashboard', active: false },
-          { label: 'Jobs', icon: 'hammer', active: true },
-          { label: 'Customers', icon: 'users', active: false },
-          { label: 'Leads', icon: 'user-plus', active: false },
-          { label: 'Reviews', icon: 'message-square-quote', active: false },
-          { label: 'Automations', icon: 'repeat', active: false },
-          { label: 'Settings', icon: 'settings', active: false },
-        ];
-        const platformJobs = [
-          { customer: 'John Smith', service: 'Drain Cleaning', status: 'Completed', tone: 'bg-emerald-50 text-emerald-700' },
-          { customer: 'Sarah Wilson', service: 'Water Heater Repair', status: 'In Progress', tone: 'bg-ember-50 text-ember-700' },
-          { customer: 'Mike Brown', service: 'Pipe Repair', status: 'Pending', tone: 'bg-slate-100 text-slate-600' },
-        ];
-
         mainContent = (
           <div className="flex min-h-screen flex-col bg-white">
             <MarketingHeader />
             <main className="flex-1 pt-16">
               <section className="relative overflow-hidden">
                 <div className="brik-grid-bg pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"></div>
-                <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-2 lg:py-24">
-                  <div className="animate-in-up">
+                <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 py-12 sm:px-8 lg:grid-cols-2 lg:gap-12 lg:py-16">
+                  <div className="animate-in-up min-w-0 lg:pr-4">
                     <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
                       <span className="h-1.5 w-1.5 rounded-full bg-ember-500"></span>
                       Websites + Systems for local business
@@ -912,96 +1536,8 @@
                     </div>
                   </div>
 
-                  <div className="animate-in-up" style={{ animationDelay: '120ms' }}>
-                    <div className="relative">
-                      <div className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-tr from-ember-100/60 via-slate-100/40 to-transparent blur-2xl"></div>
-                      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5">
-                        <div className="flex items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
-                          <span className="h-3 w-3 rounded-full bg-slate-300"></span>
-                          <span className="h-3 w-3 rounded-full bg-slate-300"></span>
-                          <span className="h-3 w-3 rounded-full bg-slate-300"></span>
-                          <span className="ml-3 text-xs font-medium text-slate-400">app.briksystems.io</span>
-                        </div>
-                        <div className="p-5 sm:p-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-xs font-medium text-slate-400">Good morning,</p>
-                              <p className="text-lg font-bold text-slate-900">{displayName}</p>
-                            </div>
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                              <Icon name="trending-up" className="h-3.5 w-3.5" />
-                              This week
-                            </span>
-                          </div>
-
-                          <div className="mt-5 grid grid-cols-2 gap-3">
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-600 bg-blue-50">
-                                  <Icon name="user-plus" className="h-4 w-4" />
-                                </span>
-                                <span className="text-xs font-semibold text-emerald-600">+3</span>
-                              </div>
-                              <p className="mt-2.5 text-2xl font-bold text-slate-900">12</p>
-                              <p className="text-xs text-slate-500">New Leads</p>
-                            </div>
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ember-600 bg-ember-50">
-                                  <Icon name="hammer" className="h-4 w-4" />
-                                </span>
-                                <span className="text-xs font-semibold text-emerald-600">+5</span>
-                              </div>
-                              <p className="mt-2.5 text-2xl font-bold text-slate-900">24</p>
-                              <p className="text-xs text-slate-500">Active Jobs</p>
-                            </div>
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-600 bg-emerald-50">
-                                  <Icon name="circle-check" className="h-4 w-4" />
-                                </span>
-                                <span className="text-xs font-semibold text-emerald-600">+2</span>
-                              </div>
-                              <p className="mt-2.5 text-2xl font-bold text-slate-900">18</p>
-                              <p className="text-xs text-slate-500">Completed</p>
-                            </div>
-                            <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-violet-600 bg-slate-100">
-                                  <Icon name="message-square-quote" className="h-4 w-4" />
-                                </span>
-                                <span className="text-xs font-semibold text-emerald-600">+4</span>
-                              </div>
-                              <p className="mt-2.5 text-2xl font-bold text-slate-900">14</p>
-                              <p className="text-xs text-slate-500">Review Requests</p>
-                            </div>
-                          </div>
-
-                          <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-                            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Workflow</p>
-                            <div className="flex items-center justify-between gap-1">
-                              {[
-                                { label: 'New Lead', icon: 'user-plus' },
-                                { label: 'In Progress', icon: 'hammer' },
-                                { label: 'Completed', icon: 'circle-check' },
-                                { label: 'Review Requested', icon: 'message-square-quote' },
-                                { label: 'Review Received', icon: 'star' },
-                              ].map((step, idx, arr) => (
-                                <div key={step.label} className="flex flex-1 items-center">
-                                  <div className="flex flex-1 flex-col items-center gap-1.5 text-center">
-                                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm">
-                                      <Icon name={step.icon} className="h-4 w-4" />
-                                    </span>
-                                    <span className="text-[10px] font-medium leading-tight text-slate-500">{step.label}</span>
-                                  </div>
-                                  {idx < arr.length - 1 && <Icon name="arrow-right" className="h-3.5 w-3.5 shrink-0 text-slate-300" />}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="animate-in-up min-w-0" style={{ animationDelay: '120ms' }}>
+                    <HomeDemoDashboard variant="hero" />
                   </div>
                 </div>
               </section>
@@ -1115,51 +1651,8 @@
                   <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">One Simple System for Your Day-to-Day Business.</h2>
                   <p className="mt-4 text-lg leading-relaxed text-slate-600">Leads, jobs, customers, and reviews live together. Jobs are the heart of it — track work from start to finish.</p>
                 </div>
-                <div className="mx-auto mt-14 max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                  <div className="grid md:grid-cols-[220px_1fr]">
-                    <aside className="hidden border-r border-slate-100 bg-slate-900 p-4 md:block">
-                      <div className="px-2 pb-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Brik Systems</div>
-                      <nav className="space-y-1">
-                        {platformNav.map((item) => (
-                          <span key={item.label} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${item.active ? 'bg-ember-500 font-medium text-white' : 'text-slate-300'}`}>
-                            <Icon name={item.icon} className="h-4 w-4" />
-                            {item.label}
-                          </span>
-                        ))}
-                      </nav>
-                    </aside>
-                    <div className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-bold text-slate-900">Jobs</h3>
-                          <p className="text-sm text-slate-500">Track your work from start to finish.</p>
-                        </div>
-                        <span className="rounded-lg bg-ember-500 px-3 py-1.5 text-sm font-medium text-white">+ New Job</span>
-                      </div>
-                      <div className="mt-5 overflow-hidden rounded-xl border border-slate-100">
-                        <table className="w-full text-left text-sm">
-                          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                            <tr>
-                              <th className="px-4 py-3 font-medium">Customer</th>
-                              <th className="px-4 py-3 font-medium">Service</th>
-                              <th className="px-4 py-3 font-medium">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {platformJobs.map((job) => (
-                              <tr key={job.customer}>
-                                <td className="px-4 py-3 font-medium text-slate-900">{job.customer}</td>
-                                <td className="px-4 py-3 text-slate-600">{job.service}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${job.tone}`}>{job.status}</span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
+                <div className="mx-auto mt-14 max-w-5xl">
+                  <HomeDemoDashboard variant="wide" />
                 </div>
                 <div className="mt-8 text-center">
                   <a className="inline-flex items-center justify-center text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 h-11 rounded-md px-8" href="#/login">
@@ -1221,12 +1714,12 @@
       // -----------------------------------------------------------------------
       else if (route === '#/work') {
         const portfolio = [
-          { name: 'Northside Plumbing', type: 'Plumbing Company', desc: 'A fast, mobile-first site with quote requests wired straight into a lead pipeline.', img: 'https://images.pexels.com/photos/8486944/pexels-photo-8486944.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Lead System', 'Review System'], color: 'from-blue-500/20' },
-          { name: 'Peak HVAC', type: 'HVAC Company', desc: 'Seasonal service booking with automated review requests after every install.', img: 'https://images.pexels.com/photos/3964736/pexels-photo-3964736.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Review System', 'Follow-Up'], color: 'from-ember-500/20' },
-          { name: 'Evergreen Landscaping', type: 'Landscaping Company', desc: 'A visual portfolio site that turns project photos into new estimate requests.', img: 'https://images.pexels.com/photos/589/garden-green-trees-park.jpg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Lead System'], color: 'from-emerald-500/20' },
-          { name: 'Bright & Clean Co.', type: 'Cleaning Company', desc: 'Recurring-service scheduling with follow-up reminders that keep clients coming back.', img: 'https://images.pexels.com/photos/4239146/pexels-photo-4239146.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Follow-Up', 'Review System'], color: 'from-cyan-500/20' },
-          { name: 'Summit Contracting', type: 'Contractor', desc: 'Project-based lead capture with job tracking from first call to final review.', img: 'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Lead System', 'AI Automation'], color: 'from-slate-500/20' },
-          { name: 'Apex Auto Detailing', type: 'Auto Detailing', desc: 'Appointment requests and post-service review prompts in one clean system.', img: 'https://images.pexels.com/photos/6873094/pexels-photo-6873094.jpeg?auto=compress&cs=tinysrgb&w=1200', tags: ['Website', 'Review System'], color: 'from-ember-500/20' },
+          { name: 'Northside Plumbing', type: 'Plumbing Company', desc: 'A fast, mobile-first site with quote requests wired straight into a lead pipeline.', art: 'plumbing', tags: ['Website', 'Lead System', 'Review System'] },
+          { name: 'Peak HVAC', type: 'HVAC Company', desc: 'Seasonal service booking with automated review requests after every install.', art: 'hvac', tags: ['Website', 'Review System', 'Follow-Up'] },
+          { name: 'Evergreen Landscaping', type: 'Landscaping Company', desc: 'A visual portfolio site that turns project photos into new estimate requests.', art: 'landscape', tags: ['Website', 'Lead System'] },
+          { name: 'Bright & Clean Co.', type: 'Cleaning Company', desc: 'Recurring-service scheduling with follow-up reminders that keep clients coming back.', art: 'cleaning', tags: ['Website', 'Follow-Up', 'Review System'] },
+          { name: 'Summit Contracting', type: 'Contractor', desc: 'Project-based lead capture with job tracking from first call to final review.', art: 'contracting', tags: ['Website', 'Lead System', 'AI Automation'] },
+          { name: 'Apex Auto Detailing', type: 'Auto Detailing', desc: 'Appointment requests and post-service review prompts in one clean system.', art: 'auto', tags: ['Website', 'Review System'] },
         ];
 
         mainContent = (
@@ -1247,8 +1740,9 @@
                   {portfolio.map((item) => (
                     <article key={item.name} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
                       <div className="relative aspect-[16/10] overflow-hidden">
-                        <div className={`absolute inset-0 z-10 bg-gradient-to-t ${item.color} to-transparent`}></div>
-                        <img src={item.img} alt={item.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        <div className="h-full w-full transition-transform duration-500 group-hover:scale-105">
+                          <WorkCardArt kind={item.art} />
+                        </div>
                         <span className="absolute left-3 top-3 z-20 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-700 backdrop-blur">
                           {item.type}
                         </span>
@@ -1314,35 +1808,7 @@
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const f = new FormData(e.target);
-                        handleCreateLead({
-                          name: f.get('name'),
-                          business: f.get('business'),
-                          email: f.get('email'),
-                          phone: f.get('phone'),
-                          service: f.get('type') || 'Custom System',
-                          notes: f.get('message'),
-                          source: 'Website Contact Form',
-                        });
-                        e.target.reset();
-                      }}
-                      className="space-y-5"
-                    >
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none" htmlFor="name">Name *</label>
-                        <input required id="name" name="name" placeholder="Alex Rivera" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none" htmlFor="email">Email *</label>
-                        <input required type="email" id="email" name="email" placeholder="alex@example.com" className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ember-500" />
-                      </div>
-                      <button type="submit" className="inline-flex items-center justify-center whitespace-nowrap text-sm font-semibold h-11 rounded-md px-8 w-full bg-ember-500 text-white hover:bg-ember-600 shadow transition">
-                        Book a Call
-                      </button>
-                    </form>
+                    <ContactInquiryForm onSubmitInquiry={handleContactInquiry} />
                   </div>
                 </div>
               </section>
@@ -2475,7 +2941,9 @@
                   </div>
                   <button onClick={() => setModal({ type: null })} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
-                <img src={modal.data.img} alt={modal.data.name} className="w-full h-48 object-cover rounded-xl" />
+                <div className="h-48 overflow-hidden rounded-xl">
+                  <WorkCardArt kind={modal.data.art} />
+                </div>
                 <p className="text-sm text-slate-600">{modal.data.desc}</p>
                 <button
                   onClick={() => {
